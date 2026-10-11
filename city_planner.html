@@ -2838,7 +2838,7 @@ const STEPS=[
    count:()=>cm(P().fire,FIRE),goal:1,unit:"fire station",
    onEnter:()=>{ if(!unlocked.has(FIRE)){ unlocked.add(FIRE); buildTools(); } }},
   {t:"That's the whole loop",
-   p:"Keep homes, shops and factories in balance — each one's demand comes from the other two. Upgrade streets when they jam, buy parcels when you run out of room, and watch the history graph for the moment growth stalls.",
+   p:"Keep homes, shops and factories in balance — each one's demand comes from the other two, and the Homes, Shops and Factories wanted bars above the map show what the city is asking for next. Upgrade streets when they jam, buy parcels when you run out of room, and watch the history graph for the moment growth stalls.",
    tool:null,tiles:()=>[],count:()=>0,goal:1,last:true},
 ];
 function stepProgress(){ return clamp(STEPS[tutStep].count(),0,STEPS[tutStep].goal); }
