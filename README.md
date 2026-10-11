@@ -17,7 +17,7 @@ it looks best with an internet connection.)
 - Residential, commercial and industrial zones driven by live demand
 - Power, water and waste networks, plus fire, police, health, school and transit coverage
 - Map overlays for land value, traffic, crime and pollution
-- Difficulty levels and seeded maps, undo, and save/load to a file
+- Difficulty levels and seeded maps, undo, and save and load in your browser
 - Zoom and pan
 
 ## License
