@@ -18,12 +18,12 @@
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:var(--ink);color:var(--text);
     font-family:"Barlow",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:min(1640px,max(1120px,calc(max(360px,(100vh - 186px) * 1.25) + 470px)));margin:0 auto;padding:8px 6px 26px}
+  .wrap{max-width:min(1640px,max(1120px,calc(max(360px,(100vh - 186px) * 1.25) + 490px)));margin:0 auto;padding:8px 6px 26px}
 
   .gamerow{display:flex;gap:8px;align-items:flex-start}
   .mapcol{flex:1 1 0;min-width:0}
   .toolcol{flex:0 0 280px;min-width:250px;position:sticky;top:10px}
-  .viewcol{flex:0 0 150px;min-width:142px;display:flex;flex-direction:column;gap:8px;position:sticky;top:10px}
+  .viewcol{flex:0 0 170px;min-width:150px;display:flex;flex-direction:column;gap:8px;position:sticky;top:10px}
   @media (max-width:880px){
     .mapbox{width:100%}
     .wrap{max-width:none}
@@ -38,7 +38,9 @@
   .viewcol .viewbar,.viewcol .subbar{flex-direction:column;flex-wrap:nowrap;border-top:1px solid var(--line);
     border-radius:7px;overflow:hidden;margin:0}
   .viewcol .viewbar button,.viewcol .subbar button{width:100%;text-align:left;flex:none;min-width:0;border-right:0}
-  .viewcol .subbar button{padding:3px 8px}
+  .viewcol .subbar.show{display:grid;grid-template-columns:1fr 1fr}
+  .viewcol .subbar button{padding:3px 4px;text-align:center;font-size:12px;min-width:0}
+  .viewcol{max-height:calc(100vh - 186px);overflow-y:auto;scrollbar-width:thin}
   .viewcol .row{flex-direction:column;align-items:stretch;gap:6px}
   .viewcol .linkbtn{width:100%;text-align:center}
   .toolcol .tools{margin-top:0}
@@ -51,6 +53,10 @@
     border:1px solid var(--accent);border-radius:99px;padding:1px 9px}
   header .sp{flex:1}
   .gtag{font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 10px}
+  .cityname{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);
+    font:600 18px "Barlow Semi Condensed",sans-serif;padding:3px 6px;text-overflow:ellipsis}
+  .cityname:hover{border-color:var(--line)}
+  .cityname:focus{outline:none;border-color:var(--accent);background:var(--ink-2)}
   .linkbtn.icon{display:inline-flex;align-items:center;padding:5px 8px}
   .icon .x,.icon .out{display:none}
   .icon.off .w{display:none}
@@ -306,6 +312,7 @@
 
   <div class="gamerow">
   <div class="viewcol">
+  <input type="text" id="cityName" class="cityname" maxlength="28" spellcheck="false" autocomplete="off" aria-label="City name" data-tip="Click to rename your city.">
   <div class="viewbar" id="views">
     <button data-v="none" aria-pressed="true">City</button>
     <button data-v="svc">Services</button>
@@ -692,6 +699,15 @@ function mulberry32(a){
     return ((t^t>>>14)>>>0)/4294967296;
   };
 }
+const CITY_NAMES=["Maple Hollow","Brookfield","Cedar Point","Stonebridge","Oakmere","Fernhill","Riverbend","Larkspur",
+  "Meadowvale","Thistledown","Harbor Glen","Pinecrest","Alder Creek","Honeywell","Copper Ridge","Elmstead","Juniper Bay",
+  "Marigold","Quillfeather","Sparrow Green","Tumbleweed","Windmere","Hazelbrook","Bluebell Cross"];
+let cityName="",pendingName=null;
+const randomCityName=()=>CITY_NAMES[(Math.random()*CITY_NAMES.length)|0];
+function syncCityName(){
+  $("cityName").value=cityName;
+  document.title=cityName+" — Willow Flats";
+}
 let mapSeed=0,rng=Math.random,pendingSeed=null;
 const WORLDS={
   river:{name:"River valley",desc:"A single wandering river cuts north-south through the map."},
@@ -789,6 +805,7 @@ function newGame(){
   pendingSeed=null;
   worldType=pendingWorld||worldType;
   pendingWorld=null;
+  cityName=pendingName||randomCityName(); pendingName=null; syncCityName();
   rng=mulberry32(mapSeed);
   const seedTag=$("mapSeedTag"); if(seedTag) seedTag.textContent=WORLDS[worldType].name+" · #"+mapSeed;
   g=new Array(W*H);
@@ -1535,7 +1552,7 @@ function showEnding(){
   if(isBest){ best=sc.final; try{ localStorage.setItem("willowflats-best",String(best)); }catch(e){} }
   $("ovK").textContent="Charter complete · "+diff.name+" · "+years+" years · Score "+sc.final+
     (isBest?" · New best!":" · Best: "+best);
-  $("ovT").textContent="Willow Flats is a metropolis";
+  $("ovT").textContent=(cityName||"Your city")+" is a metropolis";
   $("ovP").innerHTML="You crossed <b>6,000 residents</b>, averaged <b>"+Math.round(avgHappy)+
     "% happiness</b>, stayed solvent, and raised the Willow Tower — reaching <b>"+reached+"</b>, "+
     "<b>"+years+" years</b> in, on "+diff.name.toLowerCase()+".";
@@ -2955,7 +2972,7 @@ function snapshot(){
   const t=[],dev=[],br=[],seed=[];
   for(let i=0;i<W*H;i++){ t.push(g[i].t); dev.push(g[i].dev); br.push(g[i].bridge?1:0); seed.push(g[i].seed); }
   return {v:9,W,H,money,week,tax,unlocked:[...unlocked],won,loans,owned:[...owned],
-          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,mapSeed,worldType,pop,saved:Date.now()};
+          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,mapSeed,worldType,pop,cityName,saved:Date.now()};
 }
 function restore(d){
   if(d.W!==W||d.H!==H) throw new Error("size");
@@ -2965,6 +2982,7 @@ function restore(d){
   }
   money=d.money; week=d.week; tax=d.tax; won=!!d.won;
   peakTax=d.peakTax!==undefined?d.peakTax:tax; taxSum=d.taxSum||0; taxSamples=d.taxSamples||0;
+  cityName=d.cityName||randomCityName(); syncCityName();
   if(d.worldType&&WORLDS[d.worldType]) worldType=d.worldType;
   if(d.mapSeed!=null){ mapSeed=d.mapSeed; const st=$("mapSeedTag"); if(st) st.textContent=WORLDS[worldType].name+" · #"+mapSeed; }
   unlocked=new Set(d.unlocked||[]); loans=d.loans||[];
@@ -2991,11 +3009,11 @@ function slotInfo(raw){
   if(!raw) return null;
   try{
     const d=JSON.parse(raw);
-    return {d,when:dateStr(d.week),pop:d.pop,money:d.money,world:(WORLDS[d.worldType]||WORLDS.river).name,ts:d.saved||0};
+    return {d,name:d.cityName||"",when:dateStr(d.week),pop:d.pop,money:d.money,world:(WORLDS[d.worldType]||WORLDS.river).name,ts:d.saved||0};
   }catch(e){ return null; }
 }
 function slotText(info){
-  return info.when+" · "+(info.pop!=null?info.pop.toLocaleString()+" residents · ":"")+money$(info.money)+" · "+info.world;
+  return (info.name?info.name+" · ":"")+info.when+" · "+(info.pop!=null?info.pop.toLocaleString()+" residents · ":"")+money$(info.money)+" · "+info.world;
 }
 function latestSave(){
   let best=null;
@@ -3043,6 +3061,9 @@ function loadGame(){
   if(!storageOk){ $("fileIn").click(); return; }
   buildSlotList(); $("slots").classList.add("show");
 }
+$("cityName").oninput=()=>{ cityName=$("cityName").value; document.title=(cityName.trim()||"Willow Flats")+" — Willow Flats"; };
+$("cityName").onblur=()=>{ cityName=cityName.trim()||randomCityName(); syncCityName(); };
+$("cityName").onkeydown=e=>{ if(e.key==="Enter"||e.key==="Escape") $("cityName").blur(); };
 $("slotClose").onclick=()=>$("slots").classList.remove("show");
 $("slotFile").onclick=()=>{ $("slots").classList.remove("show"); $("fileIn").click(); };
 $("fileIn").onchange=e=>{
@@ -3424,7 +3445,7 @@ if(storageOk){
   const ls=latestSave();
   if(ls){
     const cb=$("introContinue");
-    cb.textContent="Continue ("+ls.when+(ls.pop!=null?" · "+ls.pop.toLocaleString()+" residents":"")+")";
+    cb.textContent="Continue ("+(ls.name?ls.name+", ":"")+ls.when+(ls.pop!=null?" · "+ls.pop.toLocaleString()+" residents":"")+")";
     cb.style.display="";
     cb.onclick=()=>{
       try{ restore(ls.d); }catch(e){ say("That save couldn't be read."); }
