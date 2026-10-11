@@ -250,6 +250,7 @@
   .slotrow{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
   .slotrow span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
   .slotrow button{flex:none}
+  .slotbtns{display:flex;gap:6px;flex:none}
   .card{background:var(--ink-2);border:1px solid var(--line);border-top:3px solid var(--accent);
     border-radius:9px;padding:22px;max-width:480px;max-height:88vh;overflow:auto}
   .card h2{margin:0 0 4px;font-family:"Barlow Semi Condensed",sans-serif;font-size:25px}
@@ -333,8 +334,7 @@
     <button data-s="transit">Transit</button>
   </div>
   <div class="row" style="margin-top:10px">
-    <button class="linkbtn" id="save" data-tip="Saves to slot 2. The previous save moves to slot 3.">Save</button>
-    <button class="linkbtn" id="load">Load</button>
+    <button class="linkbtn" id="savesBtn" data-tip="Save your city or load an earlier one. The autosave runs about every ten months.">Saves</button>
     <button class="linkbtn" id="reset">New map</button>
     <input type="file" id="fileIn" accept="application/json" style="display:none">
   </div>
@@ -528,7 +528,7 @@
     <div class="btns">
       <button class="primary" id="introContinue" style="display:none"></button>
       <button class="primary" id="introTut">Walk me through it</button>
-      <button class="linkbtn" id="introSkip">I'll figure it out</button>
+      <button class="linkbtn" id="introSkip">New game</button>
       <button class="linkbtn" id="introDiff">Difficulty…</button>
     </div>
     <p style="margin:12px 0 0;font-size:13px">Tip: rest the mouse on a tool, a number or a bar for a short explanation.</p>
@@ -537,8 +537,8 @@
 
 <div class="over" id="slots">
   <div class="card">
-    <div class="kicker">Load a city</div>
-    <h2>Saved cities</h2>
+    <div class="kicker">Save and load</div>
+    <h2>Saves</h2>
     <div id="slotList"></div>
     <div class="btns" style="margin-top:14px">
       <button class="linkbtn" id="slotFile">Load from a file…</button>
@@ -2993,12 +2993,12 @@ function restore(d){
   fleet=[]; buses=[]; fires=[]; crimes=[]; undoStack=[];
   clearOverlayTools(); buildTools(); settle();
 }
-// Three slots: the autosave, the latest manual save (slot 2) and the one before it (slot 3).
+// Three slots: the autosave (slot 1) and two slots the player saves into (2 and 3).
 // SAVE_KEY is the old single slot; it still shows up as slot 2 until a new save replaces it.
 const SLOTS=[
   {id:"auto",key:"willowflats.v9.auto",name:"Autosave"},
-  {id:"s2",key:"willowflats.v9.s2",name:"Slot 2 · latest save"},
-  {id:"s3",key:"willowflats.v9.s3",name:"Slot 3 · previous save"},
+  {id:"s2",key:"willowflats.v9.s2",name:"Slot 2"},
+  {id:"s3",key:"willowflats.v9.s3",name:"Slot 3"},
 ];
 function slotRaw(sl){
   let raw=null;
@@ -3020,47 +3020,72 @@ function latestSave(){
   for(const sl of SLOTS){ const info=slotInfo(slotRaw(sl)); if(info&&(!best||info.ts>best.ts)) best=info; }
   return best;
 }
-function saveGame(auto){
-  const data=snapshot();
-  if(storageOk){
-    try{
-      const json=JSON.stringify(data);
-      if(auto){ localStorage.setItem(SLOTS[0].key,json); return; }
-      const prev=slotRaw(SLOTS[1]);
-      if(prev) localStorage.setItem(SLOTS[2].key,prev);
-      localStorage.setItem(SLOTS[1].key,json);
-      say(prev?"Saved to slot 2. The save before it moved to slot 3.":"Saved to slot 2.");
-      return;
-    }catch(e){ storageOk=false; }
-  }
-  if(auto) return;
-  const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+function downloadSave(){
+  const blob=new Blob([JSON.stringify(snapshot())],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="willow-flats-save.json"; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  say("Chrome blocks storage for files opened from disk, so the city downloaded as a save file.");
+  say("Saved as a file (willow-flats-save.json).");
 }
+function saveGame(auto){            // the autosave
+  if(!auto||!storageOk) return;
+  try{ localStorage.setItem(SLOTS[0].key,JSON.stringify(snapshot())); }catch(e){ storageOk=false; }
+}
+function saveToSlot(i){
+  try{ localStorage.setItem(SLOTS[i].key,JSON.stringify(snapshot())); return true; }
+  catch(e){ storageOk=false; return false; }
+}
+function openNewMap(){ $("slots").classList.remove("show"); buildSliders(); $("setup").classList.add("show"); }
 function buildSlotList(){
   const list=$("slotList"); list.innerHTML="";
-  SLOTS.forEach(sl=>{
-    const info=slotInfo(slotRaw(sl));
+  const mk=(label,fn,cls)=>{ const b=document.createElement("button"); b.className="linkbtn"+(cls?" "+cls:""); b.textContent=label; b.onclick=fn; return b; };
+  const addRow=(name,sub,btns)=>{
     const row=document.createElement("div"); row.className="slotrow";
     const txt=document.createElement("div");
-    const nm=document.createElement("b"); nm.textContent=sl.name;
-    const sub=document.createElement("span"); sub.textContent=info?slotText(info):"Empty";
-    txt.appendChild(nm); txt.appendChild(sub);
-    const btn=document.createElement("button"); btn.className="linkbtn"; btn.textContent="Load"; btn.disabled=!info;
-    btn.onclick=()=>{
-      try{ restore(info.d); $("slots").classList.remove("show"); say("City loaded — "+pop.toLocaleString()+" residents."); }
-      catch(e){ say("That save couldn't be read."); }
-    };
-    row.appendChild(txt); row.appendChild(btn); list.appendChild(row);
+    const nm=document.createElement("b"); nm.textContent=name;
+    const sb=document.createElement("span"); sb.textContent=sub;
+    txt.appendChild(nm); txt.appendChild(sb);
+    const bw=document.createElement("div"); bw.className="slotbtns"; btns.forEach(b=>bw.appendChild(b));
+    row.appendChild(txt); row.appendChild(bw); list.appendChild(row);
+  };
+  if(!storageOk){
+    addRow("Save file","This browser won't store saves inside the page, so saves are files.",
+      [mk("Save to file",()=>{ $("slots").classList.remove("show"); downloadSave(); }),
+       mk("Load from file",()=>{ $("slots").classList.remove("show"); $("fileIn").click(); })]);
+    return;
+  }
+  SLOTS.forEach((sl,i)=>{
+    const info=slotInfo(slotRaw(sl));
+    const btns=[];
+    if(i>0){
+      const sv=mk("Save",null);
+      let armed=false,timer=null;
+      sv.onclick=()=>{
+        if(info&&!armed){            // a filled slot asks once before it is overwritten
+          armed=true; sv.textContent="Overwrite?"; sv.classList.add("hot");
+          timer=setTimeout(()=>{ armed=false; sv.textContent="Save"; sv.classList.remove("hot"); },3000);
+          return;
+        }
+        clearTimeout(timer);
+        if(saveToSlot(i)){ $("slots").classList.remove("show"); say("Saved to slot "+(i+1)+"."); }
+        else { buildSlotList(); say("This browser would not store the save. Use Save to file."); }
+      };
+      btns.push(sv);
+    }
+    if(info){
+      btns.push(mk("Load",()=>{
+        try{ restore(info.d); $("slots").classList.remove("show"); say("City loaded — "+pop.toLocaleString()+" residents."); }
+        catch(e){ say("That save couldn't be read."); }
+      }));
+    } else if(i>0){
+      btns.push(mk("New map",openNewMap));
+    } else {
+      const ld=mk("Load",null); ld.disabled=true; btns.push(ld);
+    }
+    addRow(sl.name,info?slotText(info):(i===0?"Empty. It fills in as you play.":"Empty"),btns);
   });
 }
-function loadGame(){
-  if(!storageOk){ $("fileIn").click(); return; }
-  buildSlotList(); $("slots").classList.add("show");
-}
+function openSaves(){ buildSlotList(); $("slots").classList.add("show"); }
 $("cityName").oninput=()=>{ cityName=$("cityName").value; document.title=(cityName.trim()||"Willow Flats")+" — Willow Flats"; };
 $("cityName").onblur=()=>{ cityName=cityName.trim()||randomCityName(); syncCityName(); };
 $("cityName").onkeydown=e=>{ if(e.key==="Enter"||e.key==="Escape") $("cityName").blur(); };
@@ -3074,8 +3099,7 @@ $("fileIn").onchange=e=>{
                  catch(err){ say("That file isn't a Willow Flats save."); } };
   r.readAsText(f); e.target.value="";
 };
-$("save").onclick=()=>saveGame(false);
-$("load").onclick=()=>loadGame();
+$("savesBtn").onclick=openSaves;
 document.querySelectorAll("[data-bond]").forEach(b=>b.onclick=()=>takeLoan(+b.dataset.bond));
 
 // ---------- dev ----------
@@ -3440,16 +3464,18 @@ settle();
 setSpeed(0);
 requestAnimationFrame(frame);
 $("intro").classList.add("show");
-["introSkip","introTut","introDiff"].forEach(id=>$(id).addEventListener("click",()=>{ $("introContinue").style.display="none"; }));
+// Continue only exists on the start screen; once the intro is dismissed it is gone and "New game" becomes "Close".
+function hideContinue(){ $("introContinue").style.display="none"; $("introTut").className="primary"; $("introSkip").textContent="Close"; }
+["introSkip","introTut","introDiff"].forEach(id=>$(id).addEventListener("click",hideContinue));
 if(storageOk){
   const ls=latestSave();
   if(ls){
     const cb=$("introContinue");
     cb.textContent="Continue ("+(ls.name?ls.name+", ":"")+ls.when+(ls.pop!=null?" · "+ls.pop.toLocaleString()+" residents":"")+")";
-    cb.style.display="";
+    cb.style.display=""; $("introTut").className="linkbtn";
     cb.onclick=()=>{
       try{ restore(ls.d); }catch(e){ say("That save couldn't be read."); }
-      cb.style.display="none"; $("intro").classList.remove("show");
+      hideContinue(); $("intro").classList.remove("show");
     };
   }
 }
