@@ -45,6 +45,14 @@
   .viewcol .linkbtn{width:100%;text-align:center}
   .toolcol .tools{margin-top:0}
   .viewcol .taxbox{flex-wrap:wrap;gap:4px 8px;min-width:0}
+  #taxArea{display:flex;flex-direction:column}
+  #taxLocked{opacity:.75}
+  .lockline{flex:0 0 100%;font-size:12px;color:var(--muted)}
+  #taxZones{flex-direction:column;align-items:stretch;gap:7px}
+  .trow{display:flex;flex-wrap:wrap;align-items:baseline;gap:1px 8px}
+  .trow label{flex:1}
+  .trow output{font-variant-numeric:tabular-nums;font-weight:600}
+  .trow input{flex:0 0 100%}
   .viewcol .taxbox label{flex:1}
   .viewcol .taxbox input{flex:0 0 100%}
   header{display:flex;align-items:center;gap:8px;padding:0 2px 8px;flex-wrap:wrap}
@@ -347,10 +355,21 @@
     <input type="file" id="fileIn" accept="application/json" style="display:none">
   </div>
   <button class="linkbtn" id="keysBtn" data-tip="All the keyboard shortcuts. You can also press ?">Keys</button>
-  <div class="taxbox" data-tip="Each point above 9% brings in about 11% more but costs about 2.6 happiness. Lower taxes also score better.">
-    <label for="tax">Tax rate</label>
-    <output id="taxOut">9%</output>
-    <input type="range" id="tax" min="3" max="20" step="1" value="9">
+  <div id="taxArea">
+    <div class="taxbox" id="taxLocked" data-tip="Tax is fixed at 9% until you reach 100 residents.">
+      <label>Tax rate</label><output>9%</output>
+      <div class="lockline">Unlocks at 100 residents</div>
+    </div>
+    <div class="taxbox" id="taxGeneral" style="display:none" data-tip="Each point above 9% brings in about 11% more but costs about 2.6 happiness and cools demand for shops and factories. Lower taxes also score better. Separate rates for homes, shops and factories unlock at 400 residents.">
+      <label for="tax">Tax rate</label>
+      <output id="taxOut">9%</output>
+      <input type="range" id="tax" min="3" max="20" step="1" value="9">
+    </div>
+    <div class="taxbox" id="taxZones" style="display:none">
+      <div class="trow" data-tip="Homes tax: each point above 9% brings in more but costs about 2.6 happiness."><label for="taxR">Homes</label><output id="taxROut">9%</output><input type="range" id="taxR" min="3" max="20" step="1" value="9"></div>
+      <div class="trow" data-tip="Shops tax: each point above 9% brings in more but cools demand for new shops."><label for="taxC">Shops</label><output id="taxCOut">9%</output><input type="range" id="taxC" min="3" max="20" step="1" value="9"></div>
+      <div class="trow" data-tip="Factories tax: each point above 9% brings in more but cools demand for new factories."><label for="taxI">Factories</label><output id="taxIOut">9%</output><input type="range" id="taxI" min="3" max="20" step="1" value="9"></div>
+    </div>
   </div>
   </div>
   <div class="mapcol">
@@ -500,6 +519,9 @@
       <li><strong>Score</strong>, shown when you win, breaks into five even parts — speed, happiness, low
         taxation, livability, and prosperity (land value plus commendations) — each worth 20, then scaled by
         difficulty.</li>
+      <li><strong>Taxes unlock as you grow.</strong> The rate is fixed at 9% until 100 residents. From 100 you get one slider for everyone,
+        and from 400 you set homes, shops and factories separately. A higher rate brings in more money per point, but the homes rate costs
+        happiness and the shops and factories rates cool demand for new ones. Lower average taxes also score better.</li>
     </ul>
   </details>
 
@@ -696,6 +718,12 @@ let inc={res:0,com:0,ind:0,total:0},upk={road:0,util:0,svc:0,park:0,debt:0,total
 let hover=null,msgTimer=0,msgEl,history=[],gShow={pop:true,money:true,happy:true,land:true};
 let infMoney=false,pinHappy=false,showCars=true,dayNight=true;
 let peakTax=0,taxSum=0,taxSamples=0;
+// Tax unlocks in stages: fixed at 9% (no control), one rate for everyone, then a rate for homes, shops and factories.
+const TAX_GENERAL_POP=100,TAX_ZONES_POP=400,TAX_DEMAND=0.03;
+let taxRes=9,taxCom=9,taxInd=9;
+const rateR=()=>unlocked.has("tax2")?taxRes:tax;
+const rateC=()=>unlocked.has("tax2")?taxCom:tax;
+const rateI=()=>unlocked.has("tax2")?taxInd:tax;
 let tutOn=false,tutStep=0,tutPlan=null,phase=0;
 let painting=false,pendingUpdate=false,straightDrag=true,protectBuilt=true,noticedPlay=false;
 let dragStart=null,dragAxis=null,lastPlaced=null;
@@ -847,7 +875,7 @@ function newGame(){
   for(let y=0;y<H;y++){ g[idx(0,y)].t=HIGHWAY; g[idx(1,y)].t=HIGHWAY; }
   for(let x=2;x<=4;x++){ const c=g[idx(x,RAMP_Y)]; c.t=STREET; c.bridge=false; }
   money=diff.cash; week=0; pop=0; jobsC=0; jobsI=0; happy=70;
-  peakTax=tax; taxSum=0; taxSamples=0;
+  tax=9; taxRes=taxCom=taxInd=9; peakTax=9; taxSum=0; taxSamples=0;
   dRes=.5; dCom=0; dInd=.2;
   powCap=powUse=watCap=watUse=garCap=garUse=powShort=watShort=garShort=0; netFlow=0;
   inc={res:0,com:0,ind:0,total:0}; upk={road:0,util:0,svc:0,park:0,debt:0,total:0};
@@ -861,6 +889,7 @@ function newGame(){
   fleet=[]; buses=[]; fires=[]; crimes=[]; fleetDirty=true; history=[]; noticedPlay=false;
   undoStack=[]; recording=null; clearOverlayTools();
   cam={x:0,y:0,s:1};
+  syncTaxInputs();
 }
 function genTerrain(){
   if(worldType==="coastal") genCoastalWater();
@@ -1296,9 +1325,9 @@ function recount(){
   // denominators grow with the city, otherwise every bar pins to ±1 past a few thousand people
   const dn=pop*0.02;
   dRes=clamp((jobs-workforce)/(60+dn),-1,1);
-  dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn),-1,1);
-  dInd=clamp((pop*0.16+jobsC*0.75-jobsI*1.05)/(40+dn),-1,1);
-  let h=74-(tax-9)*2.6;
+  dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn)-(rateC()-9)*TAX_DEMAND,-1,1);
+  dInd=clamp((pop*0.16+jobsC*0.75-jobsI*1.05)/(40+dn)-(rateI()-9)*TAX_DEMAND,-1,1);
+  let h=74-(rateR()-9)*2.6;
   h+=Math.min(10,parks*.7);
   h+=(avgLand-50)*0.25;
   h-=powShort*.25+watShort*.25+garShort*.22;
@@ -1307,11 +1336,10 @@ function recount(){
   if(pop>0&&jobs<workforce*.7) h-=10;
   for(const s of SERVICES) if(unlocked.has(s.t)) h+=(cover[s.key]-.5)*10;
   happy=pinHappy?90:Math.round(clamp(h,0,100));
-  let f=(happy/72)*clamp(avgLand/55,.55,1.6)*(tax/9);
-  f*=diff.income;
-  inc.res=Math.round(pop*0.55*f);
-  inc.com=Math.round(jobsC*0.40*f);
-  inc.ind=Math.round(jobsI*0.33*f);
+  const f=(happy/72)*clamp(avgLand/55,.55,1.6)*diff.income/9;
+  inc.res=Math.round(pop*0.55*f*rateR());
+  inc.com=Math.round(jobsC*0.40*f*rateC());
+  inc.ind=Math.round(jobsI*0.33*f*rateI());
   inc.total=inc.res+inc.com+inc.ind;
   netFlow=Math.round(inc.total-upk.total);
 }
@@ -1401,6 +1429,8 @@ function updateFires(dt){
   }
   for(let k=crimes.length-1;k>=0;k--){ crimes[k].t-=dt; if(crimes[k].t<=0) crimes.splice(k,1); }
 }
+// the rate the player is effectively paying, weighted by where the money comes from (used for the score)
+function avgRate(){ return inc.total>0?(inc.res*rateR()+inc.com*rateC()+inc.ind*rateI())/inc.total:rateR(); }
 function books(){
   if(!infMoney) money+=netFlow;
   for(let k=loans.length-1;k>=0;k--){
@@ -1408,9 +1438,9 @@ function books(){
     if(loans[k].left<=0){ loans.splice(k,1); perks.paidOff=true; say("A bond has been repaid in full."); }
   }
   history.push({w:week,pop,money,happy,land:avgLand,cong:avgCong,crime:avgCrime});
-  taxSum+=tax; taxSamples++;
+  taxSum+=avgRate(); taxSamples++;
   if(history.length>360) history.shift();
-  if(money<0&&week%12===0) say("The treasury is in the red. Raise taxes, cut back, or issue a bond.");
+  if(money<0&&week%12===0) say("The treasury is in the red. "+(unlocked.has("tax1")?"Raise taxes, cut back, or issue a bond.":"Cut back or issue a bond."));
 }
 const BOND_MONTHS=120;                       // ten years, so the payment stays serviceable
 const bondRate=()=>perks.paidOff?1.25:1.40;
@@ -1538,6 +1568,14 @@ function checkUnlocks(){
     unlocked.add(CIND); changed=true;
     say("Charter complete — clean industrial zoning is now available. Zero smog, higher cost.");
   }
+  if(!unlocked.has("tax1")&&pop>=TAX_GENERAL_POP){
+    unlocked.add("tax1"); say("Unlocked: the tax rate, at "+TAX_GENERAL_POP+" residents. The slider is on the left.");
+  }
+  if(!unlocked.has("tax2")&&pop>=TAX_ZONES_POP){
+    unlocked.add("tax1"); unlocked.add("tax2"); taxRes=taxCom=taxInd=tax; syncTaxInputs();
+    say("Unlocked: separate tax rates for homes, shops and factories, at "+TAX_ZONES_POP+" residents.");
+  }
+  taxUI();
   if(changed) buildTools();
   if(!won&&pop>=6000&&money>0&&countType(LANDMARK)>0&&runStats().avgHappy>=60){
     won=true; showEnding();
@@ -1681,7 +1719,7 @@ function advise(){
     [dCom>.5, "Shops are in short supply — zone commercial."],
     [dInd>.5, "Factories are in short supply — zone industrial."],
     [pop>500&&growthBlock()!=="growing", "Population has plateaued: "+growthBlock()+"."],
-    [happy<45, "Residents are unhappy. Lower taxes, add parks, or extend services."],
+    [happy<45, "Residents are unhappy. "+(unlocked.has("tax1")?"Lower taxes, add parks, or extend services.":"Add parks or extend services.")],
   ];
   const hit=checks.find(c=>c[0]);
   if(hit){ advisoryActive=true; say(hit[1]); return; }
@@ -1796,7 +1834,7 @@ function place(x,y){
 function settle(){
   pendingUpdate=false;
   updateServices(); computeSmog(); computeTraffic(); computeCrime(); computeLand();
-  recount(); checkUnlocks(); checkAchievements(); maybeAdvance();
+  recount(); checkUnlocks(); taxUI(); checkAchievements(); maybeAdvance();
   rebuildFleet(); rebuildBuses(); renderBase(); hud();
 }
 
@@ -3001,7 +3039,7 @@ function snapshot(){
   const t=[],dev=[],br=[],seed=[];
   for(let i=0;i<W*H;i++){ t.push(g[i].t); dev.push(g[i].dev); br.push(g[i].bridge?1:0); seed.push(g[i].seed); }
   return {v:9,W,H,money,week,tax,unlocked:[...unlocked],won,loans,owned:[...owned],
-          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,mapSeed,worldType,pop,cityName,saved:Date.now()};
+          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,taxRes,taxCom,taxInd,mapSeed,worldType,pop,cityName,saved:Date.now()};
 }
 function restore(d){
   if(d.W!==W||d.H!==H) throw new Error("size");
@@ -3015,10 +3053,12 @@ function restore(d){
   if(d.worldType&&WORLDS[d.worldType]) worldType=d.worldType;
   if(d.mapSeed!=null){ mapSeed=d.mapSeed; const st=$("mapSeedTag"); if(st) st.textContent=WORLDS[worldType].name+" · #"+mapSeed; }
   unlocked=new Set(d.unlocked||[]); loans=d.loans||[];
+  if(d.tax!==9) unlocked.add("tax1");          // older saves that had already moved the single slider
+  taxRes=d.taxRes!==undefined?d.taxRes:d.tax; taxCom=d.taxCom!==undefined?d.taxCom:d.tax; taxInd=d.taxInd!==undefined?d.taxInd:d.tax;
   achieved=new Set(d.ach||[]); perks=d.perks||{}; achTimer=d.achTimer||{}; history=d.history||[];
   if(d.owned) owned=Uint8Array.from(d.owned);
   computeMountainElev();
-  $("tax").value=tax; $("taxOut").textContent=tax+"%";
+  syncTaxInputs();
   fleet=[]; buses=[]; fires=[]; crimes=[]; undoStack=[];
   clearOverlayTools(); buildTools(); settle();
 }
@@ -3427,7 +3467,23 @@ function setSpeed(s){
 }
 $("speed").onclick=e=>{ if(e.target.dataset.sp!==undefined) setSpeed(+e.target.dataset.sp); };
 const taxEl=$("tax"),taxOut=$("taxOut");
-taxEl.oninput=()=>{ tax=+taxEl.value; peakTax=Math.max(peakTax,tax); taxOut.textContent=tax+"%"; recount(); hud(); };
+function syncTaxInputs(){
+  $("tax").value=tax; $("taxOut").textContent=tax+"%";
+  $("taxR").value=taxRes; $("taxROut").textContent=taxRes+"%";
+  $("taxC").value=taxCom; $("taxCOut").textContent=taxCom+"%";
+  $("taxI").value=taxInd; $("taxIOut").textContent=taxInd+"%";
+}
+function taxUI(){
+  const t1=unlocked.has("tax1"),t2=unlocked.has("tax2");
+  $("taxLocked").style.display=t1?"none":"";
+  $("taxGeneral").style.display=t1&&!t2?"":"none";
+  $("taxZones").style.display=t2?"":"none";
+}
+const taxChanged=()=>{ peakTax=Math.max(peakTax,rateR(),rateC(),rateI()); recount(); hud(); };
+taxEl.oninput=()=>{ tax=+taxEl.value; taxOut.textContent=tax+"%"; taxChanged(); };
+[["taxR","taxROut",v=>{ taxRes=v; }],["taxC","taxCOut",v=>{ taxCom=v; }],["taxI","taxIOut",v=>{ taxInd=v; }]].forEach(([id,out,set])=>{
+  $(id).oninput=()=>{ set(+$(id).value); $(out).textContent=$(id).value+"%"; taxChanged(); };
+});
 function buildSliders(){
   $("sliders").innerHTML="";
   for(const f of DIFF_FIELDS){
