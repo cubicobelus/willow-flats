@@ -2535,7 +2535,11 @@ const SERIES=[
 ];
 function drawGraph(){
   const gc=$("graph"),c=gc.getContext("2d");
-  const w=gc.width,h=gc.height;
+  const dpr=window.devicePixelRatio||1;
+  const w=gc.clientWidth||900,h=gc.clientHeight||150;
+  const bw=Math.round(w*dpr),bh=Math.round(h*dpr);
+  if(gc.width!==bw||gc.height!==bh){ gc.width=bw; gc.height=bh; }
+  c.setTransform(dpr,0,0,dpr,0,0);
   c.clearRect(0,0,w,h);
   c.fillStyle="#0e1920"; c.fillRect(0,0,w,h);
   c.strokeStyle="rgba(140,166,180,.18)"; c.lineWidth=1;
@@ -2565,7 +2569,7 @@ function drawGraph(){
       10+(h-30)*(1-clamp(last/max,0,1))-6);
   }
   c.fillStyle="#8ea6b4"; c.font="14px 'Barlow Semi Condensed',sans-serif";
-  const y0=2026+Math.floor(history[0].w/48),y1=2026+Math.floor(history[n-1].w/48);
+  const y0=2000+Math.floor(history[0].w/48),y1=2000+Math.floor(history[n-1].w/48);
   c.fillText(y0,32,h-8); c.textAlign="end"; c.fillText(y1,w-10,h-8); c.textAlign="start";
 }
 function buildLegend(){
@@ -2905,6 +2909,7 @@ function setTut(on){
     enterStep();
   } else glowTool(null);
 }
+addEventListener("resize",()=>drawGraph());
 $("tutBtn").onclick=()=>setTut(!tutOn);
 $("tutX").onclick=()=>setTut(false);
 $("tutSkip").onclick=()=>{ if(tutStep<STEPS.length-1){ tutStep++; enterStep(); } else setTut(false); };
