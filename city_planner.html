@@ -212,6 +212,7 @@
 
   details.dev summary,details.help summary{cursor:pointer;font-family:"Barlow Semi Condensed",sans-serif;font-size:15px}
   details.dev summary{color:var(--muted)}
+  details.dev[hidden]{display:none}
   .devrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
   .devrow button{background:var(--ink-3);border:1px solid var(--line);color:var(--text);
     border-radius:6px;padding:6px 11px;font:inherit;font-size:13.5px;cursor:pointer}
@@ -224,6 +225,9 @@
   .over{position:fixed;inset:0;background:rgba(8,14,19,.92);display:none;
     align-items:center;justify-content:center;padding:18px;z-index:30}
   .over.show{display:flex}
+  .slotrow{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .slotrow span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+  .slotrow button{flex:none}
   .card{background:var(--ink-2);border:1px solid var(--line);border-top:3px solid var(--accent);
     border-radius:9px;padding:22px;max-width:480px;max-height:88vh;overflow:auto}
   .card h2{margin:0 0 4px;font-family:"Barlow Semi Condensed",sans-serif;font-size:25px}
@@ -306,7 +310,7 @@
     <button data-s="transit">Transit</button>
   </div>
   <div class="row" style="margin-top:10px">
-    <button class="linkbtn" id="save">Save</button>
+    <button class="linkbtn" id="save" title="Saves to slot 2; the save before it moves to slot 3">Save</button>
     <button class="linkbtn" id="load">Load</button>
     <button class="linkbtn" id="reset">New map</button>
     <input type="file" id="fileIn" accept="application/json" style="display:none">
@@ -470,7 +474,7 @@
     </ul>
   </details>
 
-  <details class="panel dev">
+  <details class="panel dev" id="devPanel" hidden>
     <summary>Dev tools</summary>
     <div class="devrow">
       <button id="dCash">Add $100,000</button>
@@ -502,9 +506,22 @@
       <div><i>4</i><span>Buy more parcels when you outgrow these four. The charter at the bottom is your goal.</span></div>
     </div>
     <div class="btns">
+      <button class="primary" id="introContinue" style="display:none"></button>
       <button class="primary" id="introTut">Walk me through it</button>
       <button class="linkbtn" id="introSkip">I'll figure it out</button>
       <button class="linkbtn" id="introDiff">Difficulty…</button>
+    </div>
+  </div>
+</div>
+
+<div class="over" id="slots">
+  <div class="card">
+    <div class="kicker">Load a city</div>
+    <h2>Saved cities</h2>
+    <div id="slotList"></div>
+    <div class="btns" style="margin-top:14px">
+      <button class="linkbtn" id="slotFile">Load from a file…</button>
+      <button class="linkbtn" id="slotClose">Close</button>
     </div>
   </div>
 </div>
@@ -1578,7 +1595,7 @@ function tick(){
   if(fleetDirty&&week%4===0) rebuildFleet();
   renderBase(); hud();
   if(week%9===0) advise();
-  if(week%40===0) saveGame(true);
+  if(week%40===0&&pop>0) saveGame(true);
 }
 let advisoryActive=false;
 function advise(){
@@ -2863,7 +2880,7 @@ function snapshot(){
   const t=[],dev=[],br=[],seed=[];
   for(let i=0;i<W*H;i++){ t.push(g[i].t); dev.push(g[i].dev); br.push(g[i].bridge?1:0); seed.push(g[i].seed); }
   return {v:9,W,H,money,week,tax,unlocked:[...unlocked],won,loans,owned:[...owned],
-          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,mapSeed,worldType};
+          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,mapSeed,worldType,pop,saved:Date.now()};
 }
 function restore(d){
   if(d.W!==W||d.H!==H) throw new Error("size");
@@ -2883,12 +2900,45 @@ function restore(d){
   fleet=[]; buses=[]; fires=[]; crimes=[]; undoStack=[];
   clearOverlayTools(); buildTools(); settle();
 }
+// Three slots: the autosave, the latest manual save (slot 2) and the one before it (slot 3).
+// SAVE_KEY is the old single slot; it still shows up as slot 2 until a new save replaces it.
+const SLOTS=[
+  {id:"auto",key:"willowflats.v9.auto",name:"Autosave"},
+  {id:"s2",key:"willowflats.v9.s2",name:"Slot 2 · latest save"},
+  {id:"s3",key:"willowflats.v9.s3",name:"Slot 3 · previous save"},
+];
+function slotRaw(sl){
+  let raw=null;
+  try{ raw=localStorage.getItem(sl.key); if(!raw&&sl.id==="s2") raw=localStorage.getItem(SAVE_KEY); }catch(e){}
+  return raw;
+}
+function slotInfo(raw){
+  if(!raw) return null;
+  try{
+    const d=JSON.parse(raw);
+    return {d,when:dateStr(d.week),pop:d.pop,money:d.money,world:(WORLDS[d.worldType]||WORLDS.river).name,ts:d.saved||0};
+  }catch(e){ return null; }
+}
+function slotText(info){
+  return info.when+" · "+(info.pop!=null?info.pop.toLocaleString()+" residents · ":"")+money$(info.money)+" · "+info.world;
+}
+function latestSave(){
+  let best=null;
+  for(const sl of SLOTS){ const info=slotInfo(slotRaw(sl)); if(info&&(!best||info.ts>best.ts)) best=info; }
+  return best;
+}
 function saveGame(auto){
   const data=snapshot();
   if(storageOk){
-    try{ localStorage.setItem(SAVE_KEY,JSON.stringify(data));
-         if(!auto) say("City saved in this browser."); return; }
-    catch(e){ storageOk=false; }
+    try{
+      const json=JSON.stringify(data);
+      if(auto){ localStorage.setItem(SLOTS[0].key,json); return; }
+      const prev=slotRaw(SLOTS[1]);
+      if(prev) localStorage.setItem(SLOTS[2].key,prev);
+      localStorage.setItem(SLOTS[1].key,json);
+      say(prev?"Saved to slot 2. The save before it moved to slot 3.":"Saved to slot 2.");
+      return;
+    }catch(e){ storageOk=false; }
   }
   if(auto) return;
   const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
@@ -2897,17 +2947,29 @@ function saveGame(auto){
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   say("Chrome blocks storage for files opened from disk, so the city downloaded as a save file.");
 }
-function loadGame(){
-  if(storageOk){
-    let raw=null;
-    try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){}
-    if(raw){
-      try{ restore(JSON.parse(raw)); say("City loaded — "+pop.toLocaleString()+" residents."); return; }
-      catch(e){ say("That save couldn't be read."); return; }
-    }
-  }
-  $("fileIn").click();
+function buildSlotList(){
+  const list=$("slotList"); list.innerHTML="";
+  SLOTS.forEach(sl=>{
+    const info=slotInfo(slotRaw(sl));
+    const row=document.createElement("div"); row.className="slotrow";
+    const txt=document.createElement("div");
+    const nm=document.createElement("b"); nm.textContent=sl.name;
+    const sub=document.createElement("span"); sub.textContent=info?slotText(info):"Empty";
+    txt.appendChild(nm); txt.appendChild(sub);
+    const btn=document.createElement("button"); btn.className="linkbtn"; btn.textContent="Load"; btn.disabled=!info;
+    btn.onclick=()=>{
+      try{ restore(info.d); $("slots").classList.remove("show"); say("City loaded — "+pop.toLocaleString()+" residents."); }
+      catch(e){ say("That save couldn't be read."); }
+    };
+    row.appendChild(txt); row.appendChild(btn); list.appendChild(row);
+  });
 }
+function loadGame(){
+  if(!storageOk){ $("fileIn").click(); return; }
+  buildSlotList(); $("slots").classList.add("show");
+}
+$("slotClose").onclick=()=>$("slots").classList.remove("show");
+$("slotFile").onclick=()=>{ $("slots").classList.remove("show"); $("fileIn").click(); };
 $("fileIn").onchange=e=>{
   const f=e.target.files[0];
   if(!f) return;
@@ -3219,9 +3281,10 @@ addEventListener("keydown",e=>{
   if(e.key==="ArrowRight"){ cam.x+=step; e.preventDefault(); return; }
   if(e.key==="ArrowUp"){ cam.y-=step; e.preventDefault(); return; }
   if(e.key==="ArrowDown"){ cam.y+=step; e.preventDefault(); return; }
+  if(e.key==="`"){ e.preventDefault(); const dp=$("devPanel"); dp.hidden=!dp.hidden; if(dp.hidden) dp.open=false; else dp.scrollIntoView({block:"nearest"}); return; }
   const t=TOOLS.find(t=>t.key===e.key.toUpperCase());
   if(t&&(t.unlock===0||unlocked.has(t.id))){ selectTool(t); e.preventDefault(); return; }
-  if(e.key==="Escape") clearOverlayTools();
+  if(e.key==="Escape"){ $("slots").classList.remove("show"); clearOverlayTools(); }
   if(e.key===" "){ e.preventDefault(); setSpeed(speed>0?0:1); }
 });
 
@@ -3238,6 +3301,19 @@ settle();
 setSpeed(0);
 requestAnimationFrame(frame);
 $("intro").classList.add("show");
+["introSkip","introTut","introDiff"].forEach(id=>$(id).addEventListener("click",()=>{ $("introContinue").style.display="none"; }));
+if(storageOk){
+  const ls=latestSave();
+  if(ls){
+    const cb=$("introContinue");
+    cb.textContent="Continue ("+ls.when+(ls.pop!=null?" · "+ls.pop.toLocaleString()+" residents":"")+")";
+    cb.style.display="";
+    cb.onclick=()=>{
+      try{ restore(ls.d); }catch(e){ say("That save couldn't be read."); }
+      cb.style.display="none"; $("intro").classList.remove("show");
+    };
+  }
+}
 
 })();
 </script>
