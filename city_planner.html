@@ -66,7 +66,6 @@
   .keygrid div.lk{opacity:.45}
   .kk{flex:none;min-width:26px;text-align:center;font-size:12px;font-weight:600;color:var(--accent);border:1px solid var(--line);
     border-radius:4px;padding:1px 6px;background:#0e1a21;white-space:nowrap}
-  #keysBtn{margin-top:8px;width:100%}
   .cityname{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);
     font:600 18px "Barlow Semi Condensed",sans-serif;padding:3px 6px;text-overflow:ellipsis}
   .cityname:hover{border-color:var(--line)}
@@ -301,6 +300,7 @@
     <button class="linkbtn icon" id="fsBtn" data-tip="Fullscreen" aria-label="Fullscreen" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path class="out" d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5"/></svg></button>
     <button class="linkbtn" id="undoBtn" disabled>Undo</button>
     <button class="linkbtn" id="introBtn">Help</button>
+    <button class="linkbtn" id="keysBtn" data-tip="All the keyboard shortcuts. You can also press ?">Keys</button>
   </header>
 
   <div class="stats">
@@ -354,7 +354,6 @@
     <button class="linkbtn" id="reset">New map</button>
     <input type="file" id="fileIn" accept="application/json" style="display:none">
   </div>
-  <button class="linkbtn" id="keysBtn" data-tip="All the keyboard shortcuts. You can also press ?">Keys</button>
   <div id="taxArea">
     <div class="taxbox" id="taxLocked" data-tip="Tax is fixed at 9% until you reach 500 residents.">
       <label>Tax rate</label><output>9%</output>
