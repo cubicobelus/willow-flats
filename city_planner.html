@@ -53,6 +53,12 @@
     border:1px solid var(--accent);border-radius:99px;padding:1px 9px}
   header .sp{flex:1}
   .gtag{font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 10px}
+  .keygrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 20px}
+  .keygrid div{display:flex;align-items:baseline;gap:9px;font-size:14px;color:var(--text);min-width:0}
+  .keygrid div.lk{opacity:.45}
+  .kk{flex:none;min-width:26px;text-align:center;font-size:12px;font-weight:600;color:var(--accent);border:1px solid var(--line);
+    border-radius:4px;padding:1px 6px;background:#0e1a21;white-space:nowrap}
+  #keysBtn{margin-top:8px;width:100%}
   .cityname{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);
     font:600 18px "Barlow Semi Condensed",sans-serif;padding:3px 6px;text-overflow:ellipsis}
   .cityname:hover{border-color:var(--line)}
@@ -338,6 +344,7 @@
     <button class="linkbtn" id="reset">New map</button>
     <input type="file" id="fileIn" accept="application/json" style="display:none">
   </div>
+  <button class="linkbtn" id="keysBtn" data-tip="All the keyboard shortcuts. You can also press ?">Keys</button>
   <div class="taxbox" data-tip="Each point above 9% brings in about 11% more but costs about 2.6 happiness. Lower taxes also score better.">
     <label for="tax">Tax rate</label>
     <output id="taxOut">9%</output>
@@ -544,6 +551,26 @@
       <button class="linkbtn" id="slotFile">Load from a file…</button>
       <button class="linkbtn" id="slotClose">Close</button>
     </div>
+  </div>
+</div>
+
+<div class="over" id="keys">
+  <div class="card">
+    <div class="kicker">Controls</div>
+    <h2>Keys</h2>
+    <div class="keygrid" id="keyTools"></div>
+    <div class="lhead" style="margin:14px 0 6px">OTHER</div>
+    <div class="keygrid">
+      <div><span class="kk">Space</span><span>Play or pause</span></div>
+      <div><span class="kk">Ctrl+Z</span><span>Undo</span></div>
+      <div><span class="kk">Arrows</span><span>Pan the map</span></div>
+      <div><span class="kk">Scroll</span><span>Zoom</span></div>
+      <div><span class="kk">Middle-drag</span><span>Pan the map</span></div>
+      <div><span class="kk">Right-drag</span><span>Select a box (Upgrade, Bulldoze)</span></div>
+      <div><span class="kk">Esc</span><span>Clear the tool, close this</span></div>
+      <div><span class="kk">?</span><span>Show this list</span></div>
+    </div>
+    <div class="btns" style="margin-top:14px"><button class="linkbtn" id="keysClose">Close</button></div>
   </div>
 </div>
 
@@ -3089,6 +3116,20 @@ function openSaves(){ buildSlotList(); $("slots").classList.add("show"); }
 $("cityName").oninput=()=>{ cityName=$("cityName").value; document.title=(cityName.trim()||"Willow Flats")+" — Willow Flats"; };
 $("cityName").onblur=()=>{ cityName=cityName.trim()||randomCityName(); syncCityName(); };
 $("cityName").onkeydown=e=>{ if(e.key==="Enter"||e.key==="Escape") $("cityName").blur(); };
+function openKeys(){
+  const box=$("keyTools"); box.innerHTML="";
+  for(const t of TOOLS){
+    if(!t.key) continue;
+    const locked=t.unlock>0?!unlocked.has(t.id):(t.unlock<0&&!unlocked.has(t.id));
+    const row=document.createElement("div"); if(locked) row.className="lk";
+    const k=document.createElement("span"); k.className="kk"; k.textContent=t.key;
+    const n=document.createElement("span"); n.textContent=t.name;
+    row.appendChild(k); row.appendChild(n); box.appendChild(row);
+  }
+  $("keys").classList.add("show");
+}
+$("keysBtn").onclick=openKeys;
+$("keysClose").onclick=()=>$("keys").classList.remove("show");
 $("slotClose").onclick=()=>$("slots").classList.remove("show");
 $("slotFile").onclick=()=>{ $("slots").classList.remove("show"); $("fileIn").click(); };
 $("fileIn").onchange=e=>{
@@ -3414,9 +3455,10 @@ addEventListener("keydown",e=>{
   if(e.key==="ArrowUp"){ cam.y-=step; e.preventDefault(); return; }
   if(e.key==="ArrowDown"){ cam.y+=step; e.preventDefault(); return; }
   if(e.key==="`"){ e.preventDefault(); const dp=$("devPanel"); dp.hidden=!dp.hidden; if(dp.hidden) dp.open=false; else dp.scrollIntoView({block:"nearest"}); return; }
+  if(e.key==="?"){ e.preventDefault(); openKeys(); return; }
   const t=TOOLS.find(t=>t.key===e.key.toUpperCase());
   if(t&&(t.unlock===0||unlocked.has(t.id))){ selectTool(t); e.preventDefault(); return; }
-  if(e.key==="Escape"){ $("slots").classList.remove("show"); clearOverlayTools(); }
+  if(e.key==="Escape"){ $("slots").classList.remove("show"); $("keys").classList.remove("show"); clearOverlayTools(); }
   if(e.key===" "){ e.preventDefault(); setSpeed(speed>0?0:1); }
 });
 
