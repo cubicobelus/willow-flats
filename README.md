@@ -27,11 +27,11 @@ crime pull it down.
 - **Utilities and services:** coal and wind power, water towers and aquifers, landfills and sanitation, plus fire, police, clinics, schools and bus stops, each with a coverage radius
 - **Roads that matter:** streets, avenues and boulevards, with traffic, gridlock and bridges over water
 - **Map overlays:** services (per type), land value, traffic, crime and pollution
-- **Four map types:** river valley, coastal, lakes and mountains, with seeded maps you can share
+- **Four map types:** river valley, coastal, lakes and mountains. Click the map tag at the top to copy a link that opens the same map and difficulty for anyone
 - **Difficulty:** four presets and sliders for starting funds, tax revenue, running costs, land prices, hazards and growth speed
-- **Money:** a tax slider, bonds, land parcels to buy, and a bulldoze tool that refunds part of the cost
+- **Money:** tax rates that unlock as you grow (one rate at 100 residents, separate rates for homes, shops and factories at 400), bonds, land parcels to buy, and a bulldoze tool that refunds part of the cost
 - **Goals:** a charter to complete, ten commendations that earn permanent discounts, and a score when you finish
-- **Three save slots:** an autosave, your latest save and the one before it, all kept in your browser, with a Continue option on the intro screen
+- **Your city:** give it a name, and save into two slots of your own plus an automatic one, all kept in your browser, with Continue and New game on the start screen
 - **Quality of life:** undo, a minimap, a history graph, day and night, sound effects, zoom and pan, a fullscreen button, and short hover tips
 
 ## Controls
@@ -41,6 +41,7 @@ crime pull it down.
 | Pick a tool | the letter or number on its button (R street, 1 homes, 2 shops, 3 factories, X bulldoze, ...) |
 | Play / pause | Space |
 | Undo | Ctrl+Z |
+| Show all the keys | ? |
 | Pan | arrow keys or middle-drag |
 | Zoom | scroll wheel |
 | Clear the current tool | Esc |
