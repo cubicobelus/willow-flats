@@ -29,7 +29,7 @@ crime pull it down.
 - **Map overlays:** services (per type), land value, traffic, crime and pollution
 - **Four map types:** river valley, coastal, lakes and mountains. Click the map tag at the top to copy a link that opens the same map and difficulty for anyone
 - **Difficulty:** four presets and sliders for starting funds, tax revenue, running costs, land prices, hazards and growth speed
-- **Money:** tax rates that unlock as you grow (one rate at 100 residents, separate rates for homes, shops and factories at 400), bonds, land parcels to buy, and a bulldoze tool that refunds part of the cost
+- **Money:** tax rates that unlock as you grow (one rate at 500 residents, separate rates for homes, shops and factories at 1,000), bonds, land parcels to buy, and a bulldoze tool that refunds part of the cost
 - **Goals:** a charter to complete, ten commendations that earn permanent discounts, and a score when you finish
 - **Your city:** give it a name, and save into two slots of your own plus an automatic one, all kept in your browser, with Continue and New game on the start screen
 - **Quality of life:** undo, a minimap, a history graph, day and night, sound effects, zoom and pan, a fullscreen button, and short hover tips

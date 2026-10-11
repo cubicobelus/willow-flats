@@ -356,11 +356,11 @@
   </div>
   <button class="linkbtn" id="keysBtn" data-tip="All the keyboard shortcuts. You can also press ?">Keys</button>
   <div id="taxArea">
-    <div class="taxbox" id="taxLocked" data-tip="Tax is fixed at 9% until you reach 100 residents.">
+    <div class="taxbox" id="taxLocked" data-tip="Tax is fixed at 9% until you reach 500 residents.">
       <label>Tax rate</label><output>9%</output>
-      <div class="lockline">Unlocks at 100 residents</div>
+      <div class="lockline">Unlocks at 500 residents</div>
     </div>
-    <div class="taxbox" id="taxGeneral" style="display:none" data-tip="Each point above 9% brings in about 11% more but costs about 2.6 happiness and cools demand for shops and factories. Lower taxes also score better. Separate rates for homes, shops and factories unlock at 400 residents.">
+    <div class="taxbox" id="taxGeneral" style="display:none" data-tip="Each point above 9% brings in about 11% more but costs about 2.6 happiness and cools demand for shops and factories. Lower taxes also score better. Separate rates for homes, shops and factories unlock at 1,000 residents.">
       <label for="tax">Tax rate</label>
       <output id="taxOut">9%</output>
       <input type="range" id="tax" min="3" max="20" step="1" value="9">
@@ -519,8 +519,8 @@
       <li><strong>Score</strong>, shown when you win, breaks into five even parts — speed, happiness, low
         taxation, livability, and prosperity (land value plus commendations) — each worth 20, then scaled by
         difficulty.</li>
-      <li><strong>Taxes unlock as you grow.</strong> The rate is fixed at 9% until 100 residents. From 100 you get one slider for everyone,
-        and from 400 you set homes, shops and factories separately. A higher rate brings in more money per point, but the homes rate costs
+      <li><strong>Taxes unlock as you grow.</strong> The rate is fixed at 9% until 500 residents. From 500 you get one slider for everyone,
+        and from 1,000 you set homes, shops and factories separately. A higher rate brings in more money per point, but the homes rate costs
         happiness and the shops and factories rates cool demand for new ones. Lower average taxes also score better.</li>
     </ul>
   </details>
@@ -719,7 +719,7 @@ let hover=null,msgTimer=0,msgEl,history=[],gShow={pop:true,money:true,happy:true
 let infMoney=false,pinHappy=false,showCars=true,dayNight=true;
 let peakTax=0,taxSum=0,taxSamples=0;
 // Tax unlocks in stages: fixed at 9% (no control), one rate for everyone, then a rate for homes, shops and factories.
-const TAX_GENERAL_POP=100,TAX_ZONES_POP=400,TAX_DEMAND=0.03;
+const TAX_GENERAL_POP=500,TAX_ZONES_POP=1000,TAX_DEMAND=0.03;   // keep the texts in the markup and the Reference list in step
 let taxRes=9,taxCom=9,taxInd=9;
 const rateR=()=>unlocked.has("tax2")?taxRes:tax;
 const rateC=()=>unlocked.has("tax2")?taxCom:tax;
@@ -1573,7 +1573,7 @@ function checkUnlocks(){
   }
   if(!unlocked.has("tax2")&&pop>=TAX_ZONES_POP){
     unlocked.add("tax1"); unlocked.add("tax2"); taxRes=taxCom=taxInd=tax; syncTaxInputs();
-    say("Unlocked: separate tax rates for homes, shops and factories, at "+TAX_ZONES_POP+" residents.");
+    say("Unlocked: separate tax rates for homes, shops and factories, at "+TAX_ZONES_POP.toLocaleString()+" residents.");
   }
   taxUI();
   if(changed) buildTools();
