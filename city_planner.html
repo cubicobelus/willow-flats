@@ -64,6 +64,12 @@
   .keygrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 20px}
   .keygrid div{display:flex;align-items:baseline;gap:9px;font-size:14px;color:var(--text);min-width:0}
   .keygrid div.lk{opacity:.45}
+  #polBtn{margin-top:8px;width:100%}
+  .polrow{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}
+  .polrow b{display:block;font-size:15px}
+  .polrow span{display:block;color:var(--muted);font-size:13px;margin-top:2px;line-height:1.4}
+  .polrow .pcost{display:inline;font-size:13px;color:var(--accent);font-weight:500}
+  .polrow button{flex:none;min-width:84px}
   .kk{flex:none;min-width:26px;text-align:center;font-size:12px;font-weight:600;color:var(--accent);border:1px solid var(--line);
     border-radius:4px;padding:1px 6px;background:#0e1a21;white-space:nowrap}
   #nameInput{width:100%;background:var(--ink);border:1px solid var(--line);color:var(--text);border-radius:6px;
@@ -357,6 +363,7 @@
     <button class="linkbtn" id="reset">New map</button>
     <input type="file" id="fileIn" accept="application/json" style="display:none">
   </div>
+  <button class="linkbtn" id="polBtn" disabled data-tip="Policies unlock at 800 residents.">Policies</button>
   <div id="taxArea">
     <div class="taxbox" id="taxLocked" data-tip="Tax is fixed at 9% until you reach 500 residents.">
       <label>Tax rate</label><output>9%</output>
@@ -524,6 +531,8 @@
       <li><strong>Taxes unlock as you grow.</strong> The rate is fixed at 9% until 500 residents. From 500 you get one slider for everyone,
         and from 1,000 you set homes, shops and factories separately. A higher rate brings in more money per point, but the homes rate costs
         happiness and the shops and factories rates cool demand for new ones. Lower average taxes also score better.</li>
+      <li><strong>Policies</strong> unlock at 800 residents: recycling, clean air rules, free buses, a safety campaign and a tourism campaign.
+        Each costs money every month and has a trade-off, and you can run one at a time at first, two from 2,000 residents and three from 4,000.</li>
     </ul>
   </details>
 
@@ -587,6 +596,16 @@
     <p>Leave it blank to use the suggestion. You can rename your city any time, top left.</p>
     <input type="text" id="nameInput" maxlength="28" autocomplete="off" spellcheck="false" aria-label="City name">
     <div class="btns" style="margin-top:14px"><button class="primary" id="nameGo">Start</button></div>
+  </div>
+</div>
+
+<div class="over" id="policies">
+  <div class="card" style="max-width:540px">
+    <div class="kicker">City hall</div>
+    <h2>Policies</h2>
+    <p id="polIntro" style="margin-bottom:6px"></p>
+    <div id="polList"></div>
+    <div class="btns" style="margin-top:14px"><button class="linkbtn" id="polClose">Close</button></div>
   </div>
 </div>
 
@@ -726,13 +745,26 @@ let g,owned,money,week,pop,jobsC,jobsI,happy,tax,speed,tool,view="none",sub="all
 let dRes,dCom,dInd,powCap,powUse,watCap,watUse,garCap,garUse,powShort,watShort,garShort;
 let cover,covGrid,busCov,connected,unlocked,won=false,loans=[],perks={},achieved=new Set(),achTimer={};
 let smog,land,crime,load,distJob,distHome,distHwy,avgLand=0,avgCong=0,maxCong=0,avgCrime=0;
-let inc={res:0,com:0,ind:0,total:0},upk={road:0,util:0,svc:0,park:0,debt:0,total:0},netFlow=0;
+let inc={res:0,com:0,ind:0,total:0},upk={road:0,util:0,svc:0,park:0,debt:0,policy:0,total:0},netFlow=0;
 let hover=null,msgTimer=0,msgEl,history=[],gShow={pop:true,money:true,happy:true,land:true};
 let infMoney=false,pinHappy=false,showCars=true,dayNight=true;
 let peakTax=0,taxSum=0,taxSamples=0;
 // Tax unlocks in stages: fixed at 9% (no control), one rate for everyone, then a rate for homes, shops and factories.
 const TAX_GENERAL_POP=500,TAX_ZONES_POP=1000,TAX_DEMAND=0.03;   // keep the texts in the markup and the Reference list in step
 let taxRes=9,taxCom=9,taxInd=9;
+// Policies: city-wide rules that cost money every month. Slots unlock with the city. Rates are dollars per resident per month (a starting point to tune).
+const POLICY_POP=800;
+const POLICIES=[
+  {id:"recycle",name:"Recycling",effect:"About 25% less waste, so you need fewer landfills.",trade:"The cost is its only downside.",rate:0.020},
+  {id:"clean",name:"Clean air rules",effect:"About 40% less smog from factories, power plants and landfills.",trade:"Factories pay about 10% less tax.",rate:0.030},
+  {id:"buses",name:"Free buses",effect:"Bus stops take about 65% of nearby homes' cars off the roads instead of 45%.",trade:"Plus a small fee for every bus stop.",rate:0.015,perStop:12},
+  {id:"safety",name:"Safety campaign",effect:"About 30% fewer fires and break-ins.",trade:"Most useful on the harder difficulties.",rate:0.030},
+  {id:"tourism",name:"Tourism campaign",effect:"More demand for shops.",trade:"A little more traffic (about 5%).",rate:0.040},
+];
+let policies=new Set();
+const policyOn=id=>policies.has(id);
+const policySlots=()=>pop>=4000?3:pop>=2000?2:pop>=POLICY_POP?1:0;
+const busShare=()=>policyOn("buses")?0.65:BUS_SHARE;
 const rateR=()=>unlocked.has("tax2")?taxRes:tax;
 const rateC=()=>unlocked.has("tax2")?taxCom:tax;
 const rateI=()=>unlocked.has("tax2")?taxInd:tax;
@@ -891,7 +923,8 @@ function newGame(){
   tax=9; taxRes=taxCom=taxInd=9; peakTax=9; taxSum=0; taxSamples=0;
   dRes=.5; dCom=0; dInd=.2;
   powCap=powUse=watCap=watUse=garCap=garUse=powShort=watShort=garShort=0; netFlow=0;
-  inc={res:0,com:0,ind:0,total:0}; upk={road:0,util:0,svc:0,park:0,debt:0,total:0};
+  inc={res:0,com:0,ind:0,total:0}; upk={road:0,util:0,svc:0,park:0,debt:0,policy:0,total:0};
+  policies=new Set();
   cover={fire:0,police:0,clinic:0,school:0};
   covGrid=new Uint8Array(W*H); busCov=new Uint8Array(W*H); connected=new Uint8Array(W*H);
   smog=new Float32Array(W*H); land=new Float32Array(W*H).fill(50);
@@ -1091,6 +1124,7 @@ function updateServices(){
     else if(c.t===BUS) powUse+=1;
     else if(c.t===INCIN) powUse+=8;
   }
+  if(policyOn("recycle")) garUse=Math.round(garUse*0.75);
   powShort=powCap>=powUse?0:Math.round((1-powCap/Math.max(1,powUse))*100);
   watShort=watCap>=watUse?0:Math.round((1-watCap/Math.max(1,watUse))*100);
   garShort=garCap>=garUse?0:Math.round((1-garCap/Math.max(1,garUse))*100);
@@ -1128,7 +1162,7 @@ function updateServices(){
   }
   for(const s of SERVICES) cover[s.key]=need[s.key]?got[s.key]/need[s.key]:0;
 
-  upk={road:0,util:0,svc:0,park:0,debt:0,total:0};
+  upk={road:0,util:0,svc:0,park:0,debt:0,policy:0,total:0};
   let built=0;
   for(let i=0;i<W*H;i++) if(isZone(g[i].t)&&g[i].dev>0) built++;
   const pU=powCap?clamp(powUse/powCap,0,1):0, wU=watCap?clamp(watUse/watCap,0,1):0;
@@ -1145,8 +1179,9 @@ function updateServices(){
     if(t===POWER||t===PUMP||t===WIND||t===DUMP||t===INCIN||t===RESV) upk.util+=cost; else upk.svc+=cost;
   }
   upk.debt=loans.reduce((a,l)=>a+l.monthly,0);
-  upk.road*=diff.upkeep; upk.util*=diff.upkeep; upk.svc*=diff.upkeep; upk.park*=diff.upkeep;
-  upk.total=upk.road+upk.util+upk.svc+upk.park+upk.debt;
+  for(const pl of POLICIES) if(policies.has(pl.id)) upk.policy+=policyCost(pl);
+  upk.road*=diff.upkeep; upk.util*=diff.upkeep; upk.svc*=diff.upkeep; upk.park*=diff.upkeep; upk.policy*=diff.upkeep;
+  upk.total=upk.road+upk.util+upk.svc+upk.park+upk.debt+upk.policy;
 }
 function stamp(i,r,fn){
   const x=i%W,y=(i/W)|0;
@@ -1194,6 +1229,9 @@ function computeSmog(){
     else if(c.t===DUMP) srcOther[i]=20;
     else if(c.t===HIGHWAY) srcOther[i]=6;
     else if(c.t===BOULEVARD) srcOther[i]=5;
+  }
+  if(policyOn("clean")){   // clean air rules: factories, power plants and landfills smoke about 40% less
+    for(let i=0;i<W*H;i++){ srcInd[i]*=0.6; if(g[i].t===POWER||g[i].t===DUMP) srcOther[i]*=0.6; }
   }
   const blurredInd=blur(srcInd,6),blurredOther=blur(srcOther,4);
   for(let i=0;i<W*H;i++){
@@ -1260,7 +1298,7 @@ function computeTraffic(){
     if(c.t!==RES||c.dev===0) continue;
     const r=roadBeside(i);
     if(r<0) continue;
-    const people=CAP_RES[c.dev]*(busCov[i]?(1-BUS_SHARE):1);
+    const people=CAP_RES[c.dev]*(busCov[i]?(1-busShare()):1)*(policyOn("tourism")?1.05:1);
     if(distJob[r]>=0) for(const p of walkDown(r,distJob,70)) load[p]+=people*0.72;
     if(distHwy[r]>=0) for(const p of walkDown(r,distHwy,70)) load[p]+=people*0.28; // out-of-town commute
   }
@@ -1339,7 +1377,7 @@ function recount(){
   // denominators grow with the city, otherwise every bar pins to ±1 past a few thousand people
   const dn=pop*0.02;
   dRes=clamp((jobs-workforce)/(60+dn),-1,1);
-  dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn)-(rateC()-9)*TAX_DEMAND,-1,1);
+  dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn)-(rateC()-9)*TAX_DEMAND+(policyOn("tourism")?0.15:0),-1,1);
   dInd=clamp((pop*0.16+jobsC*0.75-jobsI*1.05)/(40+dn)-(rateI()-9)*TAX_DEMAND,-1,1);
   let h=74-(rateR()-9)*2.6;
   h+=Math.min(10,parks*.7);
@@ -1353,7 +1391,7 @@ function recount(){
   const f=(happy/72)*clamp(avgLand/55,.55,1.6)*diff.income/9;
   inc.res=Math.round(pop*0.55*f*rateR());
   inc.com=Math.round(jobsC*0.40*f*rateC());
-  inc.ind=Math.round(jobsI*0.33*f*rateI());
+  inc.ind=Math.round(jobsI*0.33*f*rateI()*(policyOn("clean")?0.9:1));
   inc.total=inc.res+inc.com+inc.ind;
   netFlow=Math.round(inc.total-upk.total);
 }
@@ -1406,13 +1444,13 @@ function hazards(){
       const c=g[i];
       if(c.dev>0&&isZone(c.t)&&!c.burning&&!hasCover(i,"fire")) risky.push(i);
     }
-    if(risky.length&&Math.random()<Math.min(.35,risky.length/280)*diff.hazard)
+    if(risky.length&&Math.random()<Math.min(.35,risky.length/280)*diff.hazard*(policyOn("safety")?0.7:1))
       igniteAt(risky[(Math.random()*risky.length)|0],"Fire with no station in range — it will spread.");
   }
   if(week%8===0&&unlocked.has(POLICE)&&pop>200){
     const hot=[];
     for(let i=0;i<W*H;i++) if(isZone(g[i].t)&&g[i].dev>0&&crime[i]>45) hot.push(i);
-    if(hot.length&&Math.random()<Math.min(.5,hot.length/120)*diff.hazard){
+    if(hot.length&&Math.random()<Math.min(.5,hot.length/120)*diff.hazard*(policyOn("safety")?0.7:1)){
       const i=hot[(Math.random()*hot.length)|0];
       const loss=Math.round(40+inc.total*0.25*clamp(crime[i]/100,0,1));
       if(!infMoney) money-=loss;
@@ -1589,7 +1627,10 @@ function checkUnlocks(){
     unlocked.add("tax1"); unlocked.add("tax2"); taxRes=taxCom=taxInd=tax; syncTaxInputs();
     say("Unlocked: separate tax rates for homes, shops and factories, at "+TAX_ZONES_POP.toLocaleString()+" residents.");
   }
-  taxUI();
+  if(!unlocked.has("pol")&&pop>=POLICY_POP){
+    unlocked.add("pol"); say("Unlocked: policies, at "+POLICY_POP+" residents. Open them from the left.");
+  }
+  taxUI(); polUI();
   if(changed) buildTools();
   if(!won&&pop>=6000&&money>0&&countType(LANDMARK)>0&&runStats().avgHappy>=60){
     won=true; showEnding();
@@ -2736,6 +2777,7 @@ function hud(){
     row("Utilities and waste","−"+money$(upk.util).slice(1),"sub")+
     row("Services","−"+money$(upk.svc).slice(1),"sub")+
     row("Parks","−"+money$(upk.park).slice(1),"sub")+
+    (upk.policy>0?row("Policies","−"+money$(upk.policy).slice(1),"sub"):"")+
     (loans.length?row("Bond repayments","−"+money$(upk.debt).slice(1),"sub"):"")+
     row("Costs","−"+money$(upk.total).slice(1),"tot neg")+
     row("Net per month",(netFlow>=0?"+":"−")+money$(netFlow).replace("-","").slice(1),
@@ -3053,7 +3095,7 @@ function snapshot(){
   const t=[],dev=[],br=[],seed=[];
   for(let i=0;i<W*H;i++){ t.push(g[i].t); dev.push(g[i].dev); br.push(g[i].bridge?1:0); seed.push(g[i].seed); }
   return {v:9,W,H,money,week,tax,unlocked:[...unlocked],won,loans,owned:[...owned],
-          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,taxRes,taxCom,taxInd,mapSeed,worldType,pop,cityName,saved:Date.now()};
+          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,taxRes,taxCom,taxInd,policies:[...policies],mapSeed,worldType,pop,cityName,saved:Date.now()};
 }
 function restore(d){
   if(d.W!==W||d.H!==H) throw new Error("size");
@@ -3068,6 +3110,7 @@ function restore(d){
   if(d.worldType&&WORLDS[d.worldType]) worldType=d.worldType;
   if(d.mapSeed!=null){ mapSeed=d.mapSeed; const st=$("mapSeedTag"); if(st) st.textContent=WORLDS[worldType].name+" · #"+mapSeed; }
   unlocked=new Set(d.unlocked||[]); loans=d.loans||[];
+  policies=new Set(d.policies||[]);
   if(d.tax!==9) unlocked.add("tax1");          // older saves that had already moved the single slider
   taxRes=d.taxRes!==undefined?d.taxRes:d.tax; taxCom=d.taxCom!==undefined?d.taxCom:d.tax; taxInd=d.taxInd!==undefined?d.taxInd:d.tax;
   achieved=new Set(d.ach||[]); perks=d.perks||{}; achTimer=d.achTimer||{}; history=d.history||[];
@@ -3248,6 +3291,41 @@ function applyLink(){
   if(used) window.history.replaceState(null,"",location.href.split(/[?#]/)[0]);
   return used;
 }
+function policyCost(pl){ let c=pop*pl.rate; if(pl.perStop) c+=pl.perStop*countType(BUS); return Math.round(c); }
+function polUI(){
+  const on=unlocked.has("pol"),b=$("polBtn");
+  b.disabled=!on;
+  b.dataset.tip=on?"City-wide rules that cost money every month. You have "+policySlots()+" slot"+(policySlots()===1?"":"s")+" at this size.":"Policies unlock at "+POLICY_POP+" residents.";
+}
+function buildPolicyList(){
+  const slots=policySlots(),used=policies.size;
+  $("polIntro").textContent="Slots: "+used+" of "+slots+" used (more open at 2,000 and 4,000 residents). Every policy costs money each month.";
+  const list=$("polList"); list.innerHTML="";
+  for(const pl of POLICIES){
+    const on=policies.has(pl.id);
+    const row=document.createElement("div"); row.className="polrow";
+    const txt=document.createElement("div");
+    const nm=document.createElement("b"); nm.textContent=pl.name;
+    const ef=document.createElement("span"); ef.textContent=pl.effect;
+    const tr=document.createElement("span"); tr.textContent=pl.trade+" ";
+    const co=document.createElement("b"); co.className="pcost"; co.textContent="About "+money$(policyCost(pl))+" a month.";
+    tr.appendChild(co);
+    txt.appendChild(nm); txt.appendChild(ef); txt.appendChild(tr);
+    const btn=document.createElement("button"); btn.className="linkbtn"+(on?" hot":""); btn.textContent=on?"Turn off":"Turn on";
+    btn.disabled=!on&&used>=slots;
+    if(btn.disabled) btn.dataset.tip=slots?"All your slots are in use. Turn another policy off first.":"No slots yet.";
+    btn.onclick=()=>togglePolicy(pl);
+    row.appendChild(txt); row.appendChild(btn); list.appendChild(row);
+  }
+}
+function togglePolicy(pl){
+  if(policies.has(pl.id)) policies.delete(pl.id);
+  else{ if(policies.size>=policySlots()) return; policies.add(pl.id); }
+  settle(); buildPolicyList();
+  say(policies.has(pl.id)?"Policy on: "+pl.name+". About "+money$(policyCost(pl))+" a month.":"Policy off: "+pl.name+".");
+}
+$("polBtn").onclick=()=>{ buildPolicyList(); $("policies").classList.add("show"); };
+$("polClose").onclick=()=>$("policies").classList.remove("show");
 $("slotClose").onclick=()=>$("slots").classList.remove("show");
 $("slotFile").onclick=()=>{ $("slots").classList.remove("show"); $("fileIn").click(); };
 $("fileIn").onchange=e=>{
@@ -3600,7 +3678,7 @@ addEventListener("keydown",e=>{
   if(e.key==="?"){ e.preventDefault(); openKeys(); return; }
   const t=TOOLS.find(t=>t.key===e.key.toUpperCase());
   if(t&&(t.unlock===0||unlocked.has(t.id))){ selectTool(t); e.preventDefault(); return; }
-  if(e.key==="Escape"){ if($("nameDlg").classList.contains("show")){ nameDone(); return; } $("slots").classList.remove("show"); $("keys").classList.remove("show"); clearOverlayTools(); }
+  if(e.key==="Escape"){ if($("nameDlg").classList.contains("show")){ nameDone(); return; } $("slots").classList.remove("show"); $("keys").classList.remove("show"); $("policies").classList.remove("show"); clearOverlayTools(); }
   if(e.key===" "){ e.preventDefault(); setSpeed(speed>0?0:1); }
 });
 
