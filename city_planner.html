@@ -63,6 +63,8 @@
     font:600 18px "Barlow Semi Condensed",sans-serif;padding:3px 6px;text-overflow:ellipsis}
   .cityname:hover{border-color:var(--line)}
   .cityname:focus{outline:none;border-color:var(--accent);background:var(--ink-2)}
+  button.gtag{background:none;cursor:pointer}
+  .gtag:hover{color:var(--text);border-color:var(--muted)}
   .linkbtn.icon{display:inline-flex;align-items:center;padding:5px 8px}
   .icon .x,.icon .out{display:none}
   .icon.off .w{display:none}
@@ -282,7 +284,7 @@
   <header>
     <h1>Willow Flats</h1>
     <span class="rank" id="rank">Settlement</span>
-    <span class="gtag"><span id="diffBadge">Normal</span> · <span id="mapSeedTag"></span></span>
+    <button class="gtag" id="shareBtn" data-tip="Click to copy a link to this map. Anyone who opens it gets the same map and difficulty."><span id="diffBadge">Normal</span> · <span id="mapSeedTag"></span></button>
     <span class="sp"></span>
     <div class="seg" id="speed">
       <button data-sp="0" aria-pressed="true">Pause</button><button data-sp="1">Play</button><button data-sp="3">Fast</button>
@@ -3130,6 +3132,52 @@ function openKeys(){
 }
 $("keysBtn").onclick=openKeys;
 $("keysClose").onclick=()=>$("keys").classList.remove("show");
+// Map links: ?seed=...&world=...&diff=... (or d=six custom numbers) and an optional name.
+const DIFF_KEYS=DIFF_FIELDS.map(f=>f.k);
+function diffPresetKey(){
+  for(const k in PRESETS){ const pr=PRESETS[k]; if(DIFF_KEYS.every(f=>diff[f]===pr[f])) return k; }
+  return null;
+}
+function mapLink(){
+  const q=new URLSearchParams();
+  q.set("seed",String(mapSeed)); q.set("world",worldType);
+  const k=diffPresetKey();
+  if(k) q.set("diff",k); else q.set("d",DIFF_KEYS.map(f=>diff[f]).join(","));
+  const nm=cityName.trim(); if(nm) q.set("name",nm);
+  return location.href.split(/[?#]/)[0]+"?"+q.toString();
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }catch(e){}
+  try{
+    const ta=document.createElement("textarea"); ta.value=t; ta.style.cssText="position:fixed;opacity:0";
+    document.body.appendChild(ta); ta.select(); const ok=document.execCommand("copy"); ta.remove(); return ok;
+  }catch(e){ return false; }
+}
+$("shareBtn").onclick=async()=>{
+  const url=mapLink();
+  say((await copyText(url))?"Link copied. Anyone who opens it gets this map and difficulty.":"Couldn't copy automatically. The link is "+url);
+};
+// Read a map link when the page opens; anything invalid is ignored.
+function applyLink(){
+  const q=new URLSearchParams(location.search);
+  let used=false;
+  const seed=q.get("seed");
+  if(seed&&/^\d{1,10}$/.test(seed)){ pendingSeed=parseInt(seed,10); used=true; }
+  const world=q.get("world");
+  if(world&&WORLDS[world]){ pendingWorld=world; $("worldSelect").value=world; used=true; }
+  const dk=q.get("diff"),dv=q.get("d");
+  if(dk&&PRESETS[dk]){ Object.assign(diff,PRESETS[dk]); used=true; }
+  else if(dv){
+    const v=dv.split(",").map(Number);
+    if(v.length===DIFF_FIELDS.length&&v.every((n,i)=>Number.isFinite(n)&&n>=DIFF_FIELDS[i].min&&n<=DIFF_FIELDS[i].max)){
+      DIFF_KEYS.forEach((f,i)=>{ diff[f]=v[i]; }); diff.name="Custom"; used=true;
+    }
+  }
+  const nm=(q.get("name")||"").replace(/[\u0000-\u001f<>]/g,"").trim().slice(0,28);
+  if(nm){ pendingName=nm; used=true; }
+  if(used) window.history.replaceState(null,"",location.href.split(/[?#]/)[0]);
+  return used;
+}
 $("slotClose").onclick=()=>$("slots").classList.remove("show");
 $("slotFile").onclick=()=>{ $("slots").classList.remove("show"); $("fileIn").click(); };
 $("fileIn").onchange=e=>{
@@ -3497,6 +3545,7 @@ document.addEventListener("focusout",hideTip);
 msgEl=$("ticker");
 tax=+taxEl.value;
 tool=TOOLS[0];
+applyLink();
 newGame();
 buildTools();
 buildLegend();
