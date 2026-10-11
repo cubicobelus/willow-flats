@@ -1,0 +1,3245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Willow Flats — City Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#101c24; --ink-2:#192a35; --ink-3:#22394a; --line:#2f4a5a;
+    --text:#e9eff3; --muted:#8ea6b4; --accent:#f2c14e;
+    --res:#6fbf73; --com:#4aa3d9; --ind:#d9a441;
+    --pow:#f0b429; --wat:#4fb3c9; --gar:#a98a5f; --bad:#e06c5c; --good:#6fbf73;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--ink);color:var(--text);
+    font-family:"Barlow",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1280px;margin:0 auto;padding:8px 6px 26px}
+
+  .gamerow{display:flex;gap:8px;align-items:flex-start}
+  .mapcol{flex:1 1 660px;min-width:0}
+  .toolcol{flex:0 0 280px;min-width:250px;position:sticky;top:10px}
+  .viewcol{flex:0 0 150px;min-width:142px;display:flex;flex-direction:column;gap:8px;position:sticky;top:10px}
+  @media (max-width:880px){
+    .gamerow{flex-direction:column}
+    .toolcol{position:static;flex-basis:auto;width:100%}
+    .viewcol{position:static;flex-basis:auto;width:100%;flex-direction:row;flex-wrap:wrap;align-items:stretch}
+    .viewcol .viewbar,.viewcol .subbar{flex-direction:row;flex:1 1 auto;min-width:220px}
+    .viewcol .viewbar button,.viewcol .subbar button{width:auto;flex:1}
+    .viewcol .row{flex:1 1 220px}
+  }
+  .viewcol .viewbar,.viewcol .subbar{flex-direction:column;flex-wrap:nowrap;border-top:1px solid var(--line);
+    border-radius:7px;overflow:hidden;margin:0}
+  .viewcol .viewbar button,.viewcol .subbar button{width:100%;text-align:left;flex:none;min-width:0;border-right:0}
+  .viewcol .row{flex-direction:column;align-items:stretch;gap:6px}
+  .viewcol .linkbtn{width:100%;text-align:center}
+  .toolcol .row{flex-direction:column;align-items:stretch;gap:8px;margin-top:10px}
+  .toolcol .seg{width:100%}
+  .toolcol .seg button{flex:1}
+  .toolcol .taxbox{width:100%}
+  .toolcol .linkbtn{width:100%;text-align:center;padding:8px 11px}
+  .toolcol .tools{margin-top:0}
+  header{display:flex;align-items:baseline;gap:10px;padding:2px 2px 10px;flex-wrap:wrap}
+  header h1{font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:22px;margin:0}
+  .rank{font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;color:var(--accent);
+    border:1px solid var(--accent);border-radius:99px;padding:1px 9px}
+  header .sp{flex:1}
+  .linkbtn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;
+    padding:5px 11px;cursor:pointer;font:inherit;font-size:14px}
+  .linkbtn:hover{color:var(--text);border-color:var(--muted)}
+  .linkbtn.hot{border-color:var(--accent);color:var(--accent)}
+  .linkbtn:disabled{opacity:.35;cursor:default}
+
+  .stats{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);
+    border-radius:7px;overflow:hidden;margin-bottom:8px}
+  .stat{flex:1;background:var(--ink-2);padding:7px 9px;min-width:0}
+  .stat .k{font-family:"Barlow Semi Condensed",sans-serif;color:var(--muted);font-size:12px}
+  .stat .v{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat .v.warn{color:var(--bad)}
+  .stat .sm{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat .sm.warn{color:var(--bad)}
+  .stat .sm b{color:var(--good);font-weight:600}
+  .stat .sm i{color:var(--bad);font-style:normal;font-weight:600}
+
+  .util{display:flex;gap:8px;margin-bottom:8px}
+  .gauge{flex:1;background:var(--ink-2);border:1px solid var(--line);border-radius:7px;padding:7px 10px}
+  .gauge .top{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+  .gauge .nm{font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;color:var(--muted)}
+  .gauge .num{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  .gauge .num.warn{color:var(--bad)}
+  .bar{height:9px;background:#0a1319;border-radius:99px;margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;border-radius:99px;transition:width .35s ease}
+
+  .mapbox{position:relative;border:1px solid var(--line);border-radius:7px 7px 0 0;overflow:hidden;
+    background:#31485c;line-height:0;border-bottom:0}
+  canvas#map{width:100%;height:auto;display:block;touch-action:none;cursor:crosshair}
+  .viewbar{display:flex;flex-wrap:wrap;gap:1px;background:var(--line);border:1px solid var(--line);
+    border-top:0;overflow:hidden}
+  .viewbar button{flex:1;min-width:80px;background:var(--ink-2);border:0;color:var(--muted);
+    font:inherit;font-size:13px;padding:6px 8px;cursor:pointer;white-space:nowrap}
+  .viewbar button[aria-pressed="true"]{background:var(--accent);color:#101c24;font-weight:600}
+  .subbar{display:none;flex-wrap:wrap;gap:1px;background:var(--line);border:1px solid var(--line);
+    border-top:0;overflow:hidden}
+  .subbar.show{display:flex}
+  .subbar button{flex:1;min-width:68px;background:#14242e;border:0;color:var(--muted);
+    font:inherit;font-size:12.5px;padding:5px 8px;cursor:pointer}
+  .subbar button[aria-pressed="true"]{background:var(--ink-3);color:var(--accent);font-weight:600}
+  .msgbar{border:1px solid var(--line);border-top:0;border-radius:0 0 7px 7px;background:#14212a;
+    padding:7px 10px;font-family:"Barlow Semi Condensed",sans-serif;font-size:13.5px;
+    color:var(--muted);min-height:32px;line-height:1.35}
+  .msgbar.alert{color:var(--accent)}
+
+  .inspect{position:absolute;left:8px;bottom:8px;background:rgba(16,28,36,.92);color:var(--text);
+    font-family:"Barlow Semi Condensed",sans-serif;font-size:12.5px;padding:5px 9px;border-radius:5px;
+    line-height:1.4;pointer-events:none;max-width:55%;display:none}
+  .inspect.show{display:block}
+  .inspect em{color:var(--muted);font-style:normal}
+  .confirm{position:absolute;right:8px;bottom:8px;background:rgba(16,28,36,.96);
+    border:1px solid var(--accent);border-radius:6px;padding:6px 8px;display:none;
+    align-items:center;gap:8px;line-height:1}
+  .confirm.show{display:flex}
+  .confirm span{font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;color:var(--text)}
+  .confirm button{border:0;border-radius:4px;padding:5px 10px;font:inherit;font-size:13px;cursor:pointer}
+  .confirm .yes{background:var(--accent);color:#101c24;font-weight:600}
+  .confirm .no{background:var(--ink-3);color:var(--muted)}
+  .zoomhint{position:absolute;left:8px;top:8px;background:rgba(16,28,36,.86);color:var(--muted);
+    font-family:"Barlow Semi Condensed",sans-serif;font-size:12px;padding:4px 8px;border-radius:5px;
+    pointer-events:none;line-height:1.3;display:none}
+  .zoomhint.show{display:block}
+
+  .demand{display:flex;gap:14px;flex-wrap:wrap}
+  .dmeter{flex:1;display:flex;align-items:center;gap:7px;min-width:150px}
+  .dmeter span{font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;color:var(--muted);width:84px}
+  .track{flex:1;height:8px;background:#0a1319;border-radius:99px;overflow:hidden}
+  .fill{height:100%;width:0;border-radius:99px;transition:width .4s ease}
+
+  .tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:6px;margin-top:8px}
+  button.tool{position:relative;background:var(--ink-2);border:1px solid var(--line);color:var(--text);
+    border-radius:7px;padding:8px 26px 8px 8px;text-align:left;cursor:pointer;display:flex;gap:8px;
+    align-items:center;font:inherit;font-size:14px}
+  button.tool:hover{background:var(--ink-3)}
+  button.tool[aria-pressed="true"]{border-color:var(--accent);background:var(--ink-3)}
+  button.tool.locked{opacity:.4;cursor:not-allowed}
+  .glow{animation:pulse 1.1s ease-in-out infinite;border-color:var(--accent)!important}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(242,193,73,.5)}50%{box-shadow:0 0 0 6px rgba(242,193,73,0)}}
+  .swatch{width:14px;height:14px;border-radius:3px;flex:none}
+  .tool .lbl{line-height:1.15;min-width:0}
+  .tool .cost{display:block;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  kbd{position:absolute;top:6px;right:6px;font-family:"Barlow Semi Condensed",sans-serif;
+    font-size:11px;line-height:1;color:var(--muted);border:1px solid var(--line);
+    border-radius:4px;padding:2px 5px;background:#0e1a21}
+  button.tool[aria-pressed="true"] kbd{color:var(--accent);border-color:var(--accent)}
+
+  .toggles{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .toggles button{background:var(--ink-2);border:1px solid var(--line);color:var(--muted);
+    border-radius:99px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+  .toggles button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+  .toggles button::before{content:"○ "}
+  .toggles button[aria-pressed="true"]::before{content:"● "}
+
+  .row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{background:var(--ink-2);border:0;border-right:1px solid var(--line);color:var(--muted);
+    padding:7px 12px;cursor:pointer;font:inherit;font-size:14px}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:#101c24;font-weight:600}
+  .taxbox{display:flex;align-items:center;gap:8px;background:var(--ink-2);border:1px solid var(--line);
+    border-radius:7px;padding:5px 10px;flex:1;min-width:190px}
+  .taxbox label{font-family:"Barlow Semi Condensed",sans-serif;color:var(--muted);font-size:13px}
+  .taxbox output{font-variant-numeric:tabular-nums;font-weight:600;width:34px;text-align:right}
+  input[type=range]{flex:1;accent-color:var(--accent);min-width:60px}
+  #seedInput{background:var(--ink-2);border:1px solid var(--line);color:var(--text);border-radius:6px;
+    padding:6px 8px;font:inherit}
+  #worldSelect{background:var(--ink-2);border:1px solid var(--line);color:var(--text);border-radius:6px;
+    padding:6px 8px;font:inherit}
+
+  .panel{margin-top:10px;border:1px solid var(--line);border-radius:7px;background:var(--ink-2);padding:10px 12px}
+  .panel h2{font-family:"Barlow Semi Condensed",sans-serif;font-size:15px;margin:0 0 8px;font-weight:600}
+  .goals{display:grid;gap:6px}
+  .goal{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+  .goal .dot{width:8px;height:8px;border-radius:99px;background:var(--line);flex:none}
+  .goal.met{color:var(--text)} .goal.met .dot{background:var(--good)}
+  .goal b{font-weight:600;font-variant-numeric:tabular-nums;margin-left:auto}
+  .steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{font-family:"Barlow Semi Condensed",sans-serif;font-size:12.5px;border:1px solid var(--line);
+    color:var(--muted);border-radius:99px;padding:3px 10px}
+  .chip.on{border-color:var(--accent);color:var(--accent)}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:640px){ .cols{grid-template-columns:1fr;gap:10px} }
+  .ledger{display:grid;gap:3px}
+  .ledger div{display:flex;font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.5}
+  .ledger div b{margin-left:auto;font-weight:500;color:var(--text)}
+  .ledger .sub{padding-left:12px;font-size:13px;opacity:.85}
+  .ledger .tot{border-top:1px solid var(--line);margin-top:5px;padding-top:5px;color:var(--text);font-weight:600}
+  .ledger .pos b{color:var(--good)} .ledger .neg b{color:var(--bad)}
+  .lhead{font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;color:var(--accent);margin-bottom:5px}
+  .bonds{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .bonds button{background:var(--ink-3);border:1px solid var(--line);color:var(--text);
+    border-radius:6px;padding:6px 11px;font:inherit;font-size:13.5px;cursor:pointer}
+  .bonds button:hover{border-color:var(--accent)}
+  .bonds span{font-size:13px;color:var(--muted)}
+
+  #graph{width:100%;height:150px;display:block;background:#0e1920;border-radius:6px;margin-top:4px}
+  .glegend{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .glegend button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:99px;
+    padding:3px 10px;font:inherit;font-size:12.5px;cursor:pointer;font-family:"Barlow Semi Condensed",sans-serif}
+  .glegend button[aria-pressed="true"]{color:#101c24;font-weight:600}
+
+  .achv{display:grid;gap:7px}
+  .ach{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--muted);line-height:1.4}
+  .ach .mk{width:16px;height:16px;border-radius:4px;border:1px solid var(--line);flex:none;margin-top:2px;
+    font-size:11px;text-align:center;line-height:14px;color:var(--line)}
+  .ach.got{color:var(--text)}
+  .ach.got .mk{border-color:var(--good);color:var(--good);background:rgba(111,191,115,.12)}
+  .ach b{font-weight:600;display:block}
+  .ach span{font-size:12.5px;opacity:.85}
+
+  #tut{display:none;border-color:var(--accent);border-left-width:3px}
+  #tut.show{display:block}
+  #tut .head{display:flex;align-items:center;gap:9px;margin-bottom:5px;flex-wrap:wrap}
+  #tut .n{font-family:"Barlow Semi Condensed",sans-serif;font-size:12.5px;color:var(--accent);
+    border:1px solid var(--accent);border-radius:99px;padding:1px 9px;white-space:nowrap}
+  #tut h3{margin:0;font-size:16px;font-weight:600}
+  #tut .acts{margin-left:auto;display:flex;gap:6px}
+  #tut p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+  #tut .prog{color:var(--accent);font-size:13.5px;margin-top:6px;font-variant-numeric:tabular-nums;font-weight:600}
+
+  details.dev summary,details.help summary{cursor:pointer;font-family:"Barlow Semi Condensed",sans-serif;font-size:15px}
+  details.dev summary{color:var(--muted)}
+  .devrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .devrow button{background:var(--ink-3);border:1px solid var(--line);color:var(--text);
+    border-radius:6px;padding:6px 11px;font:inherit;font-size:13.5px;cursor:pointer}
+  .devrow button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+  .devnote{color:var(--muted);font-size:13px;margin-top:9px;line-height:1.5;font-variant-numeric:tabular-nums}
+  details.help{margin-top:10px;border:1px solid var(--line);border-radius:7px;background:var(--ink-2);padding:10px 12px}
+  details.help ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:14px;line-height:1.6}
+  details.help strong{color:var(--text)}
+
+  .over{position:fixed;inset:0;background:rgba(8,14,19,.92);display:none;
+    align-items:center;justify-content:center;padding:18px;z-index:30}
+  .over.show{display:flex}
+  .card{background:var(--ink-2);border:1px solid var(--line);border-top:3px solid var(--accent);
+    border-radius:9px;padding:22px;max-width:480px;max-height:88vh;overflow:auto}
+  .card h2{margin:0 0 4px;font-family:"Barlow Semi Condensed",sans-serif;font-size:25px}
+  .card .kicker{color:var(--accent);font-family:"Barlow Semi Condensed",sans-serif;font-size:13px;margin-bottom:10px}
+  .card p{color:var(--muted);font-size:15px;line-height:1.6;margin:0 0 12px}
+  .card b{color:var(--text);font-weight:600}
+  .card .loop{display:grid;gap:8px;margin:0 0 16px}
+  .card .loop div{display:flex;gap:10px;font-size:14.5px;color:var(--muted);line-height:1.45}
+  .card .loop i{font-style:normal;color:var(--accent);font-weight:600;flex:none;width:14px}
+  .card .btns{display:flex;gap:8px;flex-wrap:wrap}
+  .sliders{display:grid;gap:10px}
+  .srow{display:grid;grid-template-columns:150px 1fr 74px;gap:10px;align-items:center}
+  .srow label{font-family:"Barlow Semi Condensed",sans-serif;font-size:13.5px;color:var(--muted)}
+  .srow output{font-variant-numeric:tabular-nums;font-size:13.5px;text-align:right;font-weight:600}
+  #endGraph{width:100%;height:150px;display:block;background:#0e1920;border-radius:6px;margin-top:6px}
+  .primary{background:var(--accent);border:1px solid var(--accent);color:#101c24;
+    border-radius:6px;padding:8px 16px;font:inherit;font-weight:600;cursor:pointer;font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Willow Flats</h1>
+    <span class="rank" id="rank">Settlement</span>
+    <span class="sp"></span>
+    <span class="rank" id="diffBadge" style="border-color:var(--muted);color:var(--muted)">Normal</span>
+    <span class="rank" id="mapSeedTag" style="border-color:var(--muted);color:var(--muted)"></span>
+    <button class="linkbtn" id="muteBtn">Sound on</button>
+    <button class="linkbtn" id="undoBtn" disabled>Undo</button>
+    <button class="linkbtn" id="introBtn">What is this?</button>
+    <button class="linkbtn" id="tutBtn">Tutorial</button>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Treasury</div><div class="v" id="sMoney">$20,000</div>
+      <div class="sm" id="sFlow">$0 / month</div></div>
+    <div class="stat"><div class="k">Population</div><div class="v" id="sPop">0</div><div class="sm" id="sJobs">0 jobs</div></div>
+    <div class="stat"><div class="k">Happiness</div><div class="v" id="sHappy">—</div><div class="sm" id="sHint">no residents</div></div>
+    <div class="stat"><div class="k">Land value</div><div class="v" id="sLand">—</div><div class="sm" id="sTraf">no traffic</div></div>
+    <div class="stat"><div class="k">Date</div><div class="v" id="sDate">Jan 2000</div><div class="sm" id="sTime">06:00</div></div>
+  </div>
+
+  <div class="util">
+    <div class="gauge"><div class="top"><span class="nm">Power</span><span class="num" id="powNum">0 / 0 MW</span></div>
+      <div class="bar"><i id="powBar"></i></div></div>
+    <div class="gauge"><div class="top"><span class="nm">Water</span><span class="num" id="watNum">0 / 0 kL</span></div>
+      <div class="bar"><i id="watBar"></i></div></div>
+    <div class="gauge"><div class="top"><span class="nm">Waste</span><span class="num" id="garNum">0 / 0 t</span></div>
+      <div class="bar"><i id="garBar"></i></div></div>
+  </div>
+
+  <div class="panel" style="margin-top:8px">
+    <div class="demand">
+      <div class="dmeter"><span>Homes wanted</span><div class="track"><div class="fill" id="dRes" style="background:var(--res)"></div></div></div>
+      <div class="dmeter"><span>Shops wanted</span><div class="track"><div class="fill" id="dCom" style="background:var(--com)"></div></div></div>
+      <div class="dmeter"><span>Factories</span><div class="track"><div class="fill" id="dInd" style="background:var(--ind)"></div></div></div>
+    </div>
+  </div>
+
+  <div class="gamerow">
+  <div class="viewcol">
+  <div class="viewbar" id="views">
+    <button data-v="none" aria-pressed="true">City</button>
+    <button data-v="svc">Services</button>
+    <button data-v="value">Land value</button>
+    <button data-v="traffic">Traffic</button>
+    <button data-v="crime">Crime</button>
+    <button data-v="smog">Pollution</button>
+  </div>
+  <div class="subbar" id="subs">
+    <button data-s="all" aria-pressed="true">All cover</button>
+    <button data-s="power">Power</button>
+    <button data-s="water">Water</button>
+    <button data-s="waste">Waste</button>
+    <button data-s="fire">Fire</button>
+    <button data-s="police">Police</button>
+    <button data-s="clinic">Health</button>
+    <button data-s="school">Schools</button>
+    <button data-s="transit">Transit</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button class="linkbtn" id="save">Save</button>
+    <button class="linkbtn" id="load">Load</button>
+    <button class="linkbtn" id="reset">New map</button>
+    <input type="file" id="fileIn" accept="application/json" style="display:none">
+  </div>
+  </div>
+  <div class="mapcol">
+  <div class="mapbox">
+    <canvas id="map"></canvas>
+    <div class="zoomhint" id="zoomhint">Scroll to zoom · middle-drag or arrows to pan</div>
+    <div class="inspect" id="inspect"></div>
+    <div class="confirm" id="confirm">
+      <span id="confirmTxt"></span>
+      <button class="yes" id="confirmYes">Confirm</button>
+      <button class="no" id="confirmNo">Cancel</button>
+    </div>
+  </div>
+  <div class="msgbar" id="ticker">Paused. The highway runs down the west edge — build streets off the ramp, then press Play or hit space.</div>
+
+  <div class="panel" id="tut">
+    <div class="head">
+      <span class="n" id="tutN">Step 1</span>
+      <h3 id="tutT">Build off the ramp</h3>
+      <div class="acts">
+        <button class="linkbtn" id="tutSkip">Skip step</button>
+        <button class="linkbtn" id="tutX">Close</button>
+      </div>
+    </div>
+    <p id="tutP"></p>
+    <div class="prog" id="tutProg"></div>
+  </div>
+  </div>
+
+  <div class="toolcol">
+  <div class="tools" id="tools"></div>
+
+  <div class="toggles">
+    <button id="tStraight" aria-pressed="true">Straight-line drag</button>
+    <button id="tProtect" aria-pressed="true">Protect built lots</button>
+  </div>
+
+  <div class="row">
+    <div class="seg" id="speed">
+      <button data-sp="0" aria-pressed="true">Pause</button><button data-sp="1">Play</button><button data-sp="3">Fast</button>
+    </div>
+    <div class="taxbox">
+      <label for="tax">Tax rate</label>
+      <input type="range" id="tax" min="3" max="20" step="1" value="9">
+      <output id="taxOut">9%</output>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <div class="panel">
+    <h2>History</h2>
+    <canvas id="graph" width="900" height="300"></canvas>
+    <div class="glegend" id="glegend"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Statistics</h2>
+    <div class="cols">
+      <div>
+        <div class="lhead">MONTHLY BUDGET</div>
+        <div class="ledger" id="ledger"></div>
+        <div class="bonds">
+          <span>Issue a bond:</span>
+          <button data-bond="10000">$10,000</button>
+          <button data-bond="25000">$25,000</button>
+          <button data-bond="50000">$50,000</button>
+        </div>
+        <div class="bonds"><span id="bondNote"></span></div>
+      </div>
+      <div><div class="lhead">CITY</div><div class="ledger" id="citystats"></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Commendations</h2>
+    <div class="achv" id="achv"></div>
+  </div>
+
+  <div class="panel">
+    <h2>The charter</h2>
+    <div class="goals" id="goals"></div>
+    <div class="steps" id="milestones"></div>
+  </div>
+
+  <details class="help">
+    <summary>Land use guide — what each thing actually does</summary>
+    <ul>
+      <li><strong>Residential.</strong> $24 a tile. Holds 7 people at stage 1, 18 at stage 2, 38 at stage 3.
+        Grows only when there are jobs for the people already here. Stage 2 needs land value 36 and
+        happiness over 40; stage 3 needs land value 60, happiness over 55, and at least two of its four
+        services in range. Draws 3 MW, 2 kL and 2 t of waste per stage. Pays the most tax of the three.</li>
+      <li><strong>Commercial.</strong> $28 a tile. 5 / 12 / 24 jobs by stage. Demand comes from residents
+        and, more weakly, from factories that need somewhere to sell. Needs land value 30 for stage 2, 50
+        plus one service for stage 3. Only cares about fire and police — a school next door does nothing.</li>
+      <li><strong>Industrial.</strong> $32 a tile. 8 / 18 / 36 jobs by stage — the cheapest jobs you can
+        build. Reaches stage 2 at land value 10 and stage 3 at 20, so it thrives in the corner nobody else
+        wants. It only needs fire cover. In exchange it pumps out smog that spreads roughly five tiles and
+        builds up or fades over about two years rather than snapping instantly, dropping land value for
+        everything downwind. <strong>Clean industrial</strong> ($60/tile) does the same job with zero smog —
+        it unlocks once you've raised the Willow Tower, for building a genuinely clean city on a second run.</li>
+      <li><strong>The equilibrium mix</strong> is roughly <strong>60% residential, 20% commercial, 20%
+        industrial</strong>. At that ratio all three demand bars sit near zero and the city grows evenly.
+        Skew it and one bar pins high while the others go negative.</li>
+      <li><strong>Coal plant</strong> $1,600 — 600 MW, about 65 developed lots. $25/month idle, $150 at full
+        load. Smokes. <strong>Wind farm</strong> $2,400 — 320 MW, no pollution, higher idle cost.</li>
+      <li><strong>Water tower</strong> $600 — 400 kL, about 65 lots. <strong>Aquifer</strong> $1,800 — 950 kL
+        on one tile, unlocks at 1,800 residents — the land-efficient option once space runs short.
+        <strong>Landfill</strong> $700 — 260 t, and a savage hit to land value for several tiles.
+        <strong>Sanitation center</strong> $3,200 — 750 t in one tile with a much smaller land-value hit
+        and, unlike a landfill, no smog at all.</li>
+      <li><strong>Park</strong> $90 — raises land value for several tiles around it and gives a flat
+        happiness bonus (+0.7 each, capped at +10). The single best thing you can put in a dense
+        neighbourhood.</li>
+      <li><strong>Bus stop</strong> $300, 4-tile radius, unlocks at 1,200 residents. Once you have
+        <em>two or more</em> stops on the same road network, homes within 4 tiles of a stop send about 45%
+        fewer cars onto the roads. It doesn't change where people work or how much tax they pay — it purely
+        removes traffic, which means less congestion, higher land value on the jammed streets, and one fewer
+        avenue to pay for. Stops on their own do nothing; you need a pair before anyone rides.</li>
+      <li><strong>Fire</strong> 7 tiles, <strong>police</strong> 8, <strong>clinic</strong> 9,
+        <strong>school</strong> 10. Coverage feeds happiness (±5 each) and land value (+7 per service on the
+        tile), and homes need two of them to reach stage 3. Clinic and school only count toward homes —
+        shops only care about fire and police, factories about fire alone — so they carry the same weight as
+        the others once built, they're just easy to skip early since they unlock later (1,000 / 2,200 pop).</li>
+      <li><strong>Willow Tower</strong> $100,000, unlocks at 6,000 residents. Forces land value to a flat
+        100 in a 5-tile radius around it — a guaranteed high-value core for whatever you build nearby.</li>
+    </ul>
+  </details>
+
+  <details class="help">
+    <summary>Reference</summary>
+    <ul>
+      <li><strong>The highway is where everyone comes from.</strong> Residents only move in if their street
+        traces back to the ramp on the west edge. It also supplies about 200 out-of-town jobs, which is what
+        carries you until you build your own.</li>
+      <li><strong>Roads upgrade in tiers:</strong> street (400 commuters) → avenue (1,400) → boulevard (3,200).
+        You can only build streets. Use the Upgrade tool: click two ends of a run, or right-drag a box.</li>
+      <li><strong>Zone in balance.</strong> Housing demand comes from jobs, shop demand from residents,
+        factory demand from residents and shops. Spamming one type stalls all three.</li>
+      <li><strong>Waste</strong> needs landfills, which wreck land value nearby, or a sanitation center,
+        which handles far more per tile with almost no land-value hit and no smog either.</li>
+      <li><strong>Services by land use:</strong> homes want all four, shops fire and police, factories fire only.</li>
+      <li><strong>Land outside your border</strong> lights up with its price when you hover it. Click to
+        buy, if it touches something you already own. Each parcel costs 32% more than the last.</li>
+      <li><strong>Zoom</strong> with the scroll wheel, pan with middle-drag or the arrow keys.</li>
+      <li><strong>Bonds</strong> run ten years at 140% of face value — a $10,000 bond costs $117 a month
+        for a decade. You can't borrow more than about eighteen months of revenue, so the bigger bonds
+        stay locked until the city can service them. Repay one in full and future bonds drop to 125%.</li>
+      <li><strong>Bulldoze is free and refunds 40%</strong> of what the tile cost to build — clearing a
+        coal plant you no longer need puts $640 back in the treasury. It drags like the zone tools for
+        one-by-one clearing, or right-drag a box to clear a whole area at once with a confirm step.</li>
+      <li><strong>Undo</strong> reverses the last build, upgrade or land purchase. Ctrl+Z works too.</li>
+      <li><strong>Commendations</strong> — ten to find, each worth a small permanent discount and half a
+        point toward your final score. Check the Commendations panel above for what's still open.</li>
+      <li><strong>Score</strong>, shown when you win, breaks into five even parts — speed, happiness, low
+        taxation, livability, and prosperity (land value plus commendations) — each worth 20, then scaled by
+        difficulty.</li>
+    </ul>
+  </details>
+
+  <details class="panel dev">
+    <summary>Dev tools</summary>
+    <div class="devrow">
+      <button id="dCash">Add $100,000</button>
+      <button id="dInf" aria-pressed="false">Unlimited money</button>
+      <button id="dUnlock">Unlock everything</button>
+      <button id="dLand">Own the whole map</button>
+      <button id="dTown">Build a thriving city</button>
+      <button id="dSkip">Skip 2 years</button>
+      <button id="dHappy" aria-pressed="false">Pin happiness at 90</button>
+      <button id="dFire">Start a fire</button>
+      <button id="dCars" aria-pressed="true">Show traffic</button>
+      <button id="dNight" aria-pressed="true">Day/night</button>
+    </div>
+    <div class="devnote" id="devNote"></div>
+  </details>
+</div>
+
+<div class="over" id="intro">
+  <div class="card">
+    <div class="kicker">City planner · Willow Flats</div>
+    <h2>A ramp, a river, and four parcels</h2>
+    <p>You don't place houses. You lay streets, run power, water and waste collection out to the land, and
+      mark which land is for <b>homes</b>, <b>shops</b> or <b>factories</b>. People arrive along the highway
+      and build on any serviced lot they can reach.</p>
+    <div class="loop">
+      <div><i>1</i><span>Everything grows from the highway ramp on the west edge. No route back to it, no residents.</span></div>
+      <div><i>2</i><span>Homes need jobs, shops need customers, factories need both. Zone in balance or nothing grows.</span></div>
+      <div><i>3</i><span>Land value sets how tall a lot gets. Parks lift it; smog, landfills, gridlock and crime sink it.</span></div>
+      <div><i>4</i><span>Buy more parcels when you outgrow these four. The charter at the bottom is your goal.</span></div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="introTut">Walk me through it</button>
+      <button class="linkbtn" id="introSkip">I'll figure it out</button>
+      <button class="linkbtn" id="introDiff">Difficulty…</button>
+    </div>
+  </div>
+</div>
+
+<div class="over" id="setup">
+  <div class="card">
+    <div class="kicker">New city</div>
+    <h2>Set the difficulty</h2>
+    <p>Pick a preset, or move any slider yourself — the preset just fills them in.</p>
+    <div class="btns" style="margin-bottom:14px">
+      <button class="linkbtn" data-preset="easy">Easy</button>
+      <button class="linkbtn" data-preset="normal">Normal</button>
+      <button class="linkbtn" data-preset="hard">Hard</button>
+      <button class="linkbtn" data-preset="brutal">Brutal</button>
+      <span class="sp"></span>
+      <span style="color:var(--muted);font-size:13px">Score multiplier <b id="diffMultOut" style="color:var(--text)"></b></span>
+    </div>
+    <div class="sliders" id="sliders"></div>
+    <div class="btns" style="margin:10px 0 4px;align-items:center">
+      <label for="worldSelect" style="color:var(--muted);font-size:13px">World type</label>
+      <select id="worldSelect"></select>
+    </div>
+    <p id="worldDesc" style="margin-top:2px;font-size:13px;color:var(--muted)"></p>
+    <div class="btns" style="margin:8px 0 4px;align-items:center">
+      <label for="seedInput" style="color:var(--muted);font-size:13px">Map seed</label>
+      <input type="text" id="seedInput" placeholder="random" style="width:110px">
+      <button class="linkbtn" id="seedRoll">🎲 New</button>
+    </div>
+    <p style="margin-top:4px;font-size:13px;color:var(--muted)">Leave blank for a random map, or type a
+      number to get the exact same terrain as a previous game — useful for comparing scores fairly.</p>
+    <div class="btns" style="margin-top:16px">
+      <button class="primary" id="setupGo">Start this city</button>
+      <button class="linkbtn" id="setupCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="over" id="over">
+  <div class="card">
+    <div class="kicker" id="ovK">Charter complete</div>
+    <h2 id="ovT">Willow Flats is a metropolis</h2>
+    <p id="ovP"></p>
+    <canvas id="endGraph" width="900" height="260"></canvas>
+    <div class="ledger" id="endStats" style="margin-top:12px"></div>
+    <div class="lhead" style="margin-top:14px">COMMENDATIONS</div>
+    <div id="endAch" style="font-size:13.5px;color:var(--muted);line-height:1.6"></div>
+    <div class="btns" style="margin-top:16px"><button class="primary" id="ovX">Keep playing</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const W=50,H=40,TS=16,PS=10,PW=W/PS,PH=H/PS;
+const EMPTY=0,WATER=1,TREE=2,STREET=3,RES=4,COM=5,IND=6,
+      POWER=7,PUMP=8,PARK=9,FIRE=10,POLICE=11,CLINIC=12,SCHOOL=13,
+      WIND=14,LANDMARK=15,AVENUE=16,BUS=17,BOULEVARD=18,DUMP=19,INCIN=20,HIGHWAY=21,
+      CIND=22,RESV=23,MOUNTAIN=24,
+      BULLDOZE=-1,UPGRADE=-2,BUYLAND=-3;
+
+const CAP_RES=[0,7,18,38],CAP_COM=[0,5,12,24],CAP_IND=[0,8,18,36];
+const COAL_CAP=600,WIND_CAP=320,PUMP_CAP=400,RESV_CAP=950,DUMP_CAP=260,INCIN_CAP=750;
+const ROAD_CAP={[STREET]:400,[AVENUE]:1400,[BOULEVARD]:3200,[HIGHWAY]:9000};
+const NEXT_TIER={[STREET]:AVENUE,[AVENUE]:BOULEVARD};
+const TIER_COST={[AVENUE]:35,[BOULEVARD]:120};
+const TIER_NAME={[STREET]:"street",[AVENUE]:"avenue",[BOULEVARD]:"boulevard"};
+const EXT_JOBS=200, WEEKS_PER_DAY=48, BUS_R=4, BUS_SHARE=0.45;
+const SAVE_KEY="willowflats.v9";
+
+const TOOLS=[
+  {id:STREET,   name:"Street",       cost:10,   per:true, key:"R", color:"#727a82", unlock:0},
+  {id:UPGRADE,  name:"Upgrade",      cost:35,   key:"U", color:"#f2c14e", unlock:0},
+  {id:RES,      name:"Residential",  cost:24,   per:true, key:"1", color:"#6fbf73", unlock:0},
+  {id:COM,      name:"Commercial",   cost:28,   per:true, key:"2", color:"#4aa3d9", unlock:0},
+  {id:IND,      name:"Industrial",   cost:32,   per:true, key:"3", color:"#d9a441", unlock:0},
+  {id:POWER,    name:"Coal plant",   cost:1600, key:"P", color:"#c86a4d", unlock:0},
+  {id:PUMP,     name:"Water tower",  cost:600,  key:"W", color:"#63c2cf", unlock:0},
+  {id:DUMP,     name:"Landfill",     cost:700,  key:"G", color:"#8a7a5c", unlock:0},
+  {id:PARK,     name:"Park",         cost:90,   key:"K", color:"#3f8f5a", unlock:0},
+  {id:FIRE,     name:"Fire station", cost:520,  key:"F", color:"#e0503c", unlock:100},
+  {id:POLICE,   name:"Police post",  cost:640,  key:"L", color:"#4f6fd0", unlock:400},
+  {id:CLINIC,   name:"Clinic",       cost:950,  key:"H", color:"#e8e2d8", unlock:1000},
+  {id:BUS,      name:"Bus stop",     cost:300,  key:"O", color:"#e2b93b", unlock:1200},
+  {id:RESV,     name:"Aquifer",      cost:1800, key:"Q", color:"#3d8f9e", unlock:1800},
+  {id:SCHOOL,   name:"School",       cost:1200, key:"S", color:"#c9a227", unlock:2200},
+  {id:INCIN,    name:"Sanitation",   cost:3200, key:"I", color:"#7c6f80", unlock:2600},
+  {id:WIND,     name:"Wind farm",    cost:2400, key:"N", color:"#dfe8ec", unlock:4000},
+  {id:LANDMARK, name:"Willow Tower", cost:100000,key:"T", color:"#f2c14e", unlock:6000},
+  {id:CIND,     name:"Clean zone",   cost:60,   per:true, key:"V", color:"#5fae8c", unlock:-1},
+  {id:BULLDOZE, name:"Bulldoze",     cost:0,    per:true, key:"X", color:"#8ea6b4", unlock:0},
+];
+const byId=id=>TOOLS.find(t=>t.id===id);
+const UPKEEP={[STREET]:[0.6,0.6],[AVENUE]:[2.2,2.2],[BOULEVARD]:[5,5],[HIGHWAY]:[0,0],
+  [POWER]:[25,150],[PUMP]:[12,60],[RESV]:[20,100],[WIND]:[20,95],[DUMP]:[10,55],[INCIN]:[45,190],
+  [PARK]:[6,6],[FIRE]:[12,60],[POLICE]:[14,70],[CLINIC]:[20,105],[SCHOOL]:[25,125],
+  [BUS]:[6,34],[LANDMARK]:[0,0]};
+const SERVICES=[{t:FIRE,r:7,key:"fire"},{t:POLICE,r:8,key:"police"},
+                {t:CLINIC,r:9,key:"clinic"},{t:SCHOOL,r:10,key:"school"}];
+const radiusOf=t=>{const s=SERVICES.find(s=>s.t===t);return s?s.r:(t===BUS?BUS_R:0);};
+const svcByKey=k=>SERVICES.find(s=>s.key===k);
+const NEEDS={4:["fire","police","clinic","school"],5:["fire","police"],6:["fire"],22:["fire"]};
+const RANKS=[{pop:0,name:"Settlement"},{pop:100,name:"Village"},{pop:400,name:"Small town"},
+  {pop:1000,name:"Town"},{pop:2200,name:"City"},{pop:4000,name:"Big city"},{pop:6000,name:"Metropolis"}];
+
+const $=id=>document.getElementById(id);
+const cv=$("map"),cx=cv.getContext("2d");
+const base=document.createElement("canvas"),bx=base.getContext("2d");
+const DPR=Math.min(2,window.devicePixelRatio||1);
+cv.width=W*TS*DPR; cv.height=H*TS*DPR;
+cv.style.aspectRatio=(W*TS)+" / "+(H*TS);
+base.width=cv.width; base.height=cv.height;
+bx.scale(DPR,DPR);
+
+let g,owned,money,week,pop,jobsC,jobsI,happy,tax,speed,tool,view="none",sub="all";
+let dRes,dCom,dInd,powCap,powUse,watCap,watUse,garCap,garUse,powShort,watShort,garShort;
+let cover,covGrid,busCov,connected,unlocked,won=false,loans=[],perks={},achieved=new Set(),achTimer={};
+let smog,land,crime,load,distJob,distHome,distHwy,avgLand=0,avgCong=0,maxCong=0,avgCrime=0;
+let inc={res:0,com:0,ind:0,total:0},upk={road:0,util:0,svc:0,park:0,debt:0,total:0},netFlow=0;
+let hover=null,msgTimer=0,msgEl,history=[],gShow={pop:true,money:true,happy:true,land:true};
+let infMoney=false,pinHappy=false,showCars=true,dayNight=true;
+let peakTax=0,taxSum=0,taxSamples=0;
+let tutOn=false,tutStep=0,tutPlan=null,phase=0;
+let painting=false,pendingUpdate=false,straightDrag=true,protectBuilt=true,noticedPlay=false;
+let dragStart=null,dragAxis=null,lastPlaced=null;
+let dayT=0.3,lastFrame=0,acc=0,fleet=[],buses=[],fires=[],crimes=[],fleetDirty=true;
+let upgAnchor=-1,upgPath=[],upgLocked=false,buyParcel=-1,boxStart=null,boxEnd=null,boxMode=null,bullPath=[];
+let undoStack=[],recording=null,storageOk=true;
+let cam={x:0,y:0,s:1},panning=false,panFrom=null;
+
+// ---------- difficulty ----------
+const DIFF_FIELDS=[
+  {k:"cash",   label:"Starting funds", min:5000,max:60000,step:1000,fmt:v=>"$"+v.toLocaleString()},
+  {k:"income", label:"Tax revenue",    min:0.6, max:1.6, step:0.05,fmt:v=>Math.round(v*100)+"%"},
+  {k:"upkeep", label:"Running costs",  min:0.6, max:1.6, step:0.05,fmt:v=>Math.round(v*100)+"%"},
+  {k:"parcel", label:"Land prices",    min:0.5, max:2.0, step:0.1, fmt:v=>Math.round(v*100)+"%"},
+  {k:"hazard", label:"Fires and crime",min:0,   max:2.0, step:0.1, fmt:v=>v?Math.round(v*100)+"%":"off"},
+  {k:"growth", label:"Growth speed",   min:0.6, max:1.6, step:0.05,fmt:v=>Math.round(v*100)+"%"},
+];
+const PRESETS={
+  easy:  {name:"Easy",  cash:40000,income:1.3, upkeep:0.8, parcel:0.7,hazard:0.4,growth:1.3},
+  normal:{name:"Normal",cash:20000,income:1.0, upkeep:1.0, parcel:1.0,hazard:1.0,growth:1.0},
+  hard:  {name:"Hard",  cash:12000,income:0.85,upkeep:1.15,parcel:1.4,hazard:1.5,growth:0.85},
+  brutal:{name:"Brutal",cash:8000, income:0.7, upkeep:1.35,parcel:1.8,hazard:2.0,growth:0.7},
+};
+let diff=Object.assign({},PRESETS.normal);
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+let mapSeed=0,rng=Math.random,pendingSeed=null;
+const WORLDS={
+  river:{name:"River valley",desc:"A single wandering river cuts north-south through the map."},
+  coastal:{name:"Coastal",desc:"Open ocean along the east side — less buildable land, no river."},
+  lakes:{name:"Lakes",desc:"Several scattered ponds instead of one river — more usable land overall."},
+  mountains:{name:"Mountains",desc:"A jagged, impassable ridge — no bridging over it, roads have to go around."},
+};
+let worldType="river",pendingWorld=null;
+let mountElev=null,mountH=null,mtMax=1;
+// distance from the edge of the range — 1 at the foothills, higher toward the spine
+function computeMountainElev(){
+  mountElev=new Int16Array(W*H);
+  const q=[];
+  for(let i=0;i<W*H;i++) if(g[i].t!==MOUNTAIN){ mountElev[i]=0; q.push(i); }
+  let head=0;
+  while(head<q.length){
+    const i=q[head++],x=i%W,y=(i/W)|0;
+    for(const [nx,ny] of N4(x,y)){
+      if(!inb(nx,ny)) continue;
+      const j=idx(nx,ny);
+      if(g[j].t===MOUNTAIN&&mountElev[j]===0){ mountElev[j]=mountElev[i]+1; q.push(j); }
+    }
+  }
+  // smooth it into a continuous height field so the range reads as one landform,
+  // not a stack of discrete distance bands
+  let a=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++) a[i]=mountElev[i];
+  let b=new Float32Array(W*H);
+  for(let p=0;p<3;p++){
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      let s=a[idx(x,y)]*2,n=2;
+      for(const [nx,ny] of N4(x,y)) if(inb(nx,ny)){ s+=a[idx(nx,ny)]; n++; }
+      b[idx(x,y)]=s/n;
+    }
+    const t=a; a=b; b=t;
+  }
+  mountH=a; mtMax=1;
+  for(let i=0;i<W*H;i++) if(g[i].t===MOUNTAIN&&mountH[i]>mtMax) mtMax=mountH[i];
+}
+
+// ---------- sound ----------
+const snd={ctx:null,on:true};
+function audio(){
+  if(snd.ctx) return snd.ctx;
+  try{ snd.ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ snd.ctx=null; }
+  return snd.ctx;
+}
+function blip(freq,dur,type,vol,delay){
+  const c=audio();
+  if(!c||!snd.on) return;
+  const t=c.currentTime+(delay||0);
+  const o=c.createOscillator(),gn=c.createGain();
+  o.type=type||"sine"; o.frequency.setValueAtTime(freq,t);
+  gn.gain.setValueAtTime(0,t);
+  gn.gain.linearRampToValueAtTime(vol||0.12,t+0.012);
+  gn.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(gn); gn.connect(c.destination);
+  o.start(t); o.stop(t+dur+0.05);
+}
+function sfx(name){
+  if(!snd.on) return;
+  if(name==="place") blip(420+Math.random()*60,0.07,"square",0.05);
+  else if(name==="build") blip(300,0.14,"triangle",0.10),blip(450,0.12,"triangle",0.07,0.06);
+  else if(name==="cash"){ [523,659,784,1047].forEach((f,i)=>blip(f,0.16,"triangle",0.09,i*0.06)); }
+  else if(name==="chime"){ [659,880,1319].forEach((f,i)=>blip(f,0.5,"sine",0.11,i*0.11)); }
+  else if(name==="siren"){
+    const c=audio(); if(!c) return;
+    const o=c.createOscillator(),gn=c.createGain();
+    o.type="sine"; gn.gain.value=0.07;
+    const t=c.currentTime;
+    for(let k=0;k<4;k++){ o.frequency.setValueAtTime(720,t+k*0.42); o.frequency.setValueAtTime(540,t+k*0.42+0.21); }
+    gn.gain.setValueAtTime(0.07,t); gn.gain.exponentialRampToValueAtTime(0.0001,t+1.7);
+    o.connect(gn); gn.connect(c.destination); o.start(t); o.stop(t+1.8);
+  }
+  else if(name==="alarm") blip(220,0.35,"sawtooth",0.07),blip(180,0.4,"sawtooth",0.06,0.18);
+  else if(name==="win"){ [523,659,784,1047,1319].forEach((f,i)=>blip(f,0.7,"triangle",0.12,i*0.14)); }
+}
+
+const idx=(x,y)=>y*W+x, inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const isZone=t=>t===RES||t===COM||t===IND||t===CIND;
+const isTier=t=>t===STREET||t===AVENUE||t===BOULEVARD;
+const isRoadT=t=>isTier(t)||t===HIGHWAY;
+const isWet=c=>c.t===WATER||c.bridge;
+const N4=(x,y)=>[[x+1,y],[x-1,y],[x,y+1],[x,y-1]];
+const parcelOf=(x,y)=>((y/PS)|0)*PW+((x/PS)|0);
+const ownedAt=(x,y)=>owned[parcelOf(x,y)]===1;
+const ownedCount=()=>owned.reduce((a,b)=>a+b,0);
+const parcelCost=()=>Math.round(6000*diff.parcel*Math.pow(1.32,ownedCount()-4));
+const RAMP_Y=20;
+
+// ---------- setup ----------
+function newGame(){
+  mapSeed=pendingSeed!=null?pendingSeed:((Math.random()*1e9)|0);
+  pendingSeed=null;
+  worldType=pendingWorld||worldType;
+  pendingWorld=null;
+  rng=mulberry32(mapSeed);
+  const seedTag=$("mapSeedTag"); if(seedTag) seedTag.textContent=WORLDS[worldType].name+" · #"+mapSeed;
+  g=new Array(W*H);
+  for(let i=0;i<W*H;i++) g[i]={t:EMPTY,dev:0,decay:0,pow:false,wat:false,road:false,link:false,
+    bridge:false,burning:0,seed:(rng()*1000)|0,v:rng()};
+  owned=new Uint8Array(PW*PH);
+  for(const p of [0*PW+0,0*PW+1,1*PW+0,1*PW+1,2*PW+0,2*PW+1]) owned[p]=0;
+  for(const p of [1*PW+0,1*PW+1,2*PW+0,2*PW+1]) owned[p]=1;
+  genTerrain();
+  for(let y=0;y<H;y++){ g[idx(0,y)].t=HIGHWAY; g[idx(1,y)].t=HIGHWAY; }
+  for(let x=2;x<=4;x++){ const c=g[idx(x,RAMP_Y)]; c.t=STREET; c.bridge=false; }
+  money=diff.cash; week=0; pop=0; jobsC=0; jobsI=0; happy=70;
+  peakTax=tax; taxSum=0; taxSamples=0;
+  dRes=.5; dCom=0; dInd=.2;
+  powCap=powUse=watCap=watUse=garCap=garUse=powShort=watShort=garShort=0; netFlow=0;
+  inc={res:0,com:0,ind:0,total:0}; upk={road:0,util:0,svc:0,park:0,debt:0,total:0};
+  cover={fire:0,police:0,clinic:0,school:0};
+  covGrid=new Uint8Array(W*H); busCov=new Uint8Array(W*H); connected=new Uint8Array(W*H);
+  smog=new Float32Array(W*H); land=new Float32Array(W*H).fill(50);
+  crime=new Float32Array(W*H); load=new Float32Array(W*H);
+  distJob=new Int16Array(W*H); distHome=new Int16Array(W*H); distHwy=new Int16Array(W*H);
+  unlocked=new Set(); won=false; tutStep=0; tutPlan=null; loans=[];
+  perks={}; achieved=new Set(); achTimer={};
+  fleet=[]; buses=[]; fires=[]; crimes=[]; fleetDirty=true; history=[]; noticedPlay=false;
+  undoStack=[]; recording=null; clearOverlayTools();
+  cam={x:0,y:0,s:1};
+}
+function genTerrain(){
+  if(worldType==="coastal") genCoastalWater();
+  else if(worldType==="lakes") genLakesWater();
+  else if(worldType==="mountains") genMountainRange();
+  else genRiverWater();
+  genTrees();
+  // safety net — the tutorial footprint must stay dry and flat regardless of world type
+  for(let y=RAMP_Y-4;y<=RAMP_Y+9;y++) for(let x=2;x<=17;x++)
+    if(inb(x,y)&&(g[idx(x,y)].t===WATER||g[idx(x,y)].t===MOUNTAIN)) g[idx(x,y)].t=EMPTY;
+  computeMountainElev();
+}
+// lays one ridge down a slice of the map; taperStart/taperEnd shrink it to nothing at that tip.
+// maxHalf caps how fat it gets and wander caps how far it strays from x0 — both matter when
+// two ridges have to stay clear of each other.
+function layRidge(yStart,yEnd,x0,taperStart,taperEnd,gap,maxHalf,wander){
+  let rx=x0,drift=(rng()-.5)*.5;
+  const p1=rng()*6.28,p2=rng()*6.28;
+  for(let y=Math.max(0,yStart);y<=Math.min(H-1,yEnd);y++){
+    drift=clamp(drift+(rng()-.5)*.3,-.8,.8);
+    rx+=drift;
+    if(wander) rx=clamp(rx,x0-wander,x0+wander);
+    // width wanders between roughly 3 and 11 tiles via two slow waves beating against each other
+    let half=1.5+3.2*(0.5+0.5*Math.sin(y/7+p1))*(0.55+0.45*Math.sin(y/17+p2))+rng()*0.4;
+    if(maxHalf) half=Math.min(half,maxHalf);
+    if(gap){
+      const d=Math.abs(y-gap.y);
+      if(d<gap.half) continue;                  // the saddle itself — open ground
+      half*=clamp((d-gap.half)/3.5,0,1);        // shoulders taper down into it
+    }
+    if(taperStart) half*=clamp((y-yStart)/5.5,0,1);
+    if(taperEnd)   half*=clamp((yEnd-y)/5.5,0,1);
+    if(half<0.5) continue;
+    // keep clear of the tutorial footprint (x<=17) no matter how wide this row runs
+    if(rx-half<19){ rx=19+half; drift=0.15+rng()*0.3; }
+    if(rx+half>W-2) rx=W-2-half;
+    for(let x=3;x<W;x++) if(Math.abs(x-rx)<half) g[idx(x,y)].t=MOUNTAIN;
+  }
+}
+function genMountainRange(){
+  const r=rng();
+  if(r<0.55){
+    // a saddle somewhere in the middle of one long range
+    layRidge(0,H-1,24+rng()*(W-36),false,false,{y:6+rng()*(H-12),half:2.5+rng()*2},0,0);
+  } else if(r<0.72){
+    // two offset ranges that overlap vertically — no straight shot across, you have to
+    // round one tip then the other, which makes the road zig-zag between them
+    const splitY=Math.floor(H*0.35+rng()*H*0.30);
+    const overlap=5+Math.floor(rng()*5);
+    const xW=25+rng()*3,xE=Math.min(W-6,xW+16+rng()*4);
+    const northIsWest=rng()<0.5;
+    const xN=northIsWest?xW:xE,xS=northIsWest?xE:xW;
+    layRidge(0,splitY+overlap,xN,false,true,null,3.8,2);
+    layRidge(splitY-overlap,H-1,xS,true,false,null,3.8,2);
+  } else {
+    // the range stops short of one end, so roads can round the tip
+    const fromTop=rng()<0.5;
+    const endY=fromTop?(5+rng()*9):(H-1-(5+rng()*9));
+    if(fromTop) layRidge(endY,H-1,24+rng()*(W-36),true,false,null,0,0);
+    else        layRidge(0,endY,24+rng()*(W-36),false,true,null,0,0);
+  }
+}
+function genRiverWater(){
+  let rx=23+rng()*(W-34),drift=(rng()-.5)*.6;
+  // most maps get the familiar narrow river; the rest get a broad one that wanders
+  // between a creek and something you need a real bridge to cross
+  const broad=rng()<0.35;
+  const p1=rng()*6.28,p2=rng()*6.28;
+  for(let y=0;y<H;y++){
+    drift=clamp(drift+(rng()-.5)*.35,-.9,.9);
+    rx+=drift;
+    const wd=broad
+      ? 1.6+3.4*(0.5+0.5*Math.sin(y/8+p1))*(0.55+0.45*Math.sin(y/19+p2))+rng()*0.3
+      : 1.7+Math.sin(y/6)*.8;
+    // keep clear of the tutorial footprint (x<=17) no matter how wide this row runs
+    if(rx-wd<19){ rx=19+wd; drift=0.15+rng()*0.3; }
+    if(rx+wd>W-2) rx=W-2-wd;
+    for(let x=3;x<W;x++) if(Math.abs(x-rx)<wd) g[idx(x,y)].t=WATER;
+  }
+}
+function genCoastalWater(){
+  // a wavy coastline; everything east of it is ocean
+  let cx=W*0.52+rng()*(W*0.14),drift=(rng()-.5)*.4;
+  const minCx=22; // keep this much dry land clear from the west edge no matter how the coast drifts
+  for(let y=0;y<H;y++){
+    drift=clamp(drift+(rng()-.5)*.3,-.7,.7);
+    cx+=drift+Math.sin(y/9)*0.15;
+    if(cx<minCx) cx=minCx;
+    for(let x=Math.floor(cx);x<W;x++) g[idx(x,y)].t=WATER;
+  }
+}
+function genLakesWater(){
+  const n=4+Math.floor(rng()*3);
+  for(let k=0;k<n;k++){
+    const cxp=24+rng()*(W-26),cyp=rng()*H,r=2.5+rng()*3.5;
+    for(let y=Math.floor(cyp-r);y<=cyp+r;y++)
+      for(let x=Math.floor(cxp-r);x<=cxp+r;x++){
+        if(!inb(x,y)||x<2) continue;
+        const d=Math.hypot(x-cxp,y-cyp);
+        if(d<r*(0.72+rng()*0.35)) g[idx(x,y)].t=WATER;
+      }
+  }
+}
+function genTrees(){
+  for(let c=0;c<32;c++){
+    const cxp=3+rng()*(W-3),cyp=rng()*H,r=1.5+rng()*3;
+    for(let y=Math.floor(cyp-r);y<=cyp+r;y++)
+      for(let x=Math.floor(cxp-r);x<=cxp+r;x++){
+        if(!inb(x,y)||x<2) continue;
+        const d=Math.hypot(x-cxp,y-cyp);
+        if(d<r&&rng()>d/r*.8&&g[idx(x,y)].t===EMPTY) g[idx(x,y)].t=TREE;
+      }
+  }
+}
+
+// ---------- undo ----------
+function beginAction(label){ recording={label,seen:new Map(),money,owned:owned.slice()}; }
+function noteChange(i){
+  if(!recording||recording.seen.has(i)) return;
+  const c=g[i];
+  recording.seen.set(i,{t:c.t,dev:c.dev,bridge:c.bridge});
+}
+function endAction(){
+  if(recording&&(recording.seen.size||recording.landBuy)){
+    undoStack.push(recording);
+    if(undoStack.length>30) undoStack.shift();
+  }
+  recording=null;
+  $("undoBtn").disabled=!undoStack.length;
+}
+function undo(){
+  const a=undoStack.pop();
+  if(!a) return say("Nothing to undo.");
+  for(const [i,s] of a.seen){
+    const c=g[i]; c.t=s.t; c.dev=s.dev; c.bridge=s.bridge; c.burning=0; c.decay=0;
+  }
+  money=a.money; owned=a.owned.slice();
+  fires=fires.filter(f=>g[f.i].burning); fleetDirty=true;
+  settle(); buildTools(); say("Undid "+a.label+".");
+}
+$("undoBtn").onclick=undo;
+
+// ---------- networks ----------
+function updateServices(){
+  const comp=new Int16Array(W*H).fill(-1);
+  let n=0; const st=[];
+  for(let i=0;i<W*H;i++){
+    if(!isRoadT(g[i].t)||comp[i]!==-1) continue;
+    comp[i]=n; st.length=0; st.push(i);
+    while(st.length){
+      const c=st.pop(),x=c%W,y=(c/W)|0;
+      for(const [nx,ny] of N4(x,y)){
+        if(!inb(nx,ny)) continue;
+        const j=idx(nx,ny);
+        if(isRoadT(g[j].t)&&comp[j]===-1){ comp[j]=n; st.push(j); }
+      }
+    }
+    n++;
+  }
+  const hwyNet=new Array(n).fill(false);
+  for(let i=0;i<W*H;i++) if(g[i].t===HIGHWAY&&comp[i]>=0) hwyNet[comp[i]]=true;
+  const hookNet=i=>{                       // zones attach to local roads, never the highway itself
+    const x=i%W,y=(i/W)|0;
+    for(const [nx,ny] of N4(x,y))
+      if(inb(nx,ny)&&isTier(g[idx(nx,ny)].t)) return comp[idx(nx,ny)];
+    return -1;
+  };
+  const hasP=new Array(n).fill(false),hasW=new Array(n).fill(false);
+  powCap=0; watCap=0; garCap=0;
+  for(let i=0;i<W*H;i++){
+    const t=g[i].t;
+    if(t!==POWER&&t!==PUMP&&t!==WIND&&t!==DUMP&&t!==INCIN&&t!==RESV) continue;
+    const net=hookNet(i);
+    if(net<0) continue;
+    if(t===PUMP||t===RESV){ hasW[net]=true; watCap+=(t===RESV?RESV_CAP:PUMP_CAP); }
+    else if(t===DUMP) garCap+=DUMP_CAP;
+    else if(t===INCIN) garCap+=INCIN_CAP;
+    else { hasP[net]=true; powCap+=(t===WIND?WIND_CAP:COAL_CAP); }
+  }
+  powUse=0; watUse=0; garUse=0;
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(c.dev>0&&isZone(c.t)){ powUse+=c.dev*3; watUse+=c.dev*2; garUse+=c.dev*2; }
+    else if(c.t===FIRE||c.t===POLICE||c.t===CLINIC||c.t===SCHOOL||c.t===LANDMARK){ powUse+=5; watUse+=3; }
+    else if(c.t===BUS) powUse+=1;
+    else if(c.t===INCIN) powUse+=8;
+  }
+  powShort=powCap>=powUse?0:Math.round((1-powCap/Math.max(1,powUse))*100);
+  watShort=watCap>=watUse?0:Math.round((1-watCap/Math.max(1,watUse))*100);
+  garShort=garCap>=garUse?0:Math.round((1-garCap/Math.max(1,garUse))*100);
+  connected.fill(0);
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(!isZone(c.t)){ c.road=false; c.pow=false; c.wat=false; c.link=false; continue; }
+    const net=hookNet(i);
+    c.road=net>=0;
+    c.link=net>=0&&hwyNet[net];
+    if(c.link) connected[i]=1;
+    c.pow=c.road&&hasP[net]&&(c.seed%100)>=powShort;
+    c.wat=c.road&&hasW[net]&&(c.seed%100)>=watShort;
+  }
+  covGrid.fill(0); busCov.fill(0);
+  SERVICES.forEach((s,bit)=>{
+    for(let i=0;i<W*H;i++){
+      if(g[i].t!==s.t) continue;
+      const net=hookNet(i);
+      if(net<0||!hasP[net]) continue;
+      stamp(i,s.r,j=>covGrid[j]|=(1<<bit));
+    }
+  });
+  let stops=0;
+  for(let i=0;i<W*H;i++){
+    if(g[i].t!==BUS||hookNet(i)<0) continue;
+    stops++; stamp(i,BUS_R,j=>busCov[j]=1);
+  }
+  if(stops<2) busCov.fill(0);
+  const need={fire:0,police:0,clinic:0,school:0},got={fire:0,police:0,clinic:0,school:0};
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(!isZone(c.t)||c.dev===0) continue;
+    for(const k of (NEEDS[c.t]||[])){ need[k]++; if(hasCover(i,k)) got[k]++; }
+  }
+  for(const s of SERVICES) cover[s.key]=need[s.key]?got[s.key]/need[s.key]:0;
+
+  upk={road:0,util:0,svc:0,park:0,debt:0,total:0};
+  let built=0;
+  for(let i=0;i<W*H;i++) if(isZone(g[i].t)&&g[i].dev>0) built++;
+  const pU=powCap?clamp(powUse/powCap,0,1):0, wU=watCap?clamp(watUse/watCap,0,1):0;
+  const gU=garCap?clamp(garUse/garCap,0,1):0, scale=clamp(built/60,0.15,1);
+  for(let i=0;i<W*H;i++){
+    const t=g[i].t,u=UPKEEP[t];
+    if(!u) continue;
+    if(isRoadT(t)){ upk.road+=u[0]; continue; }
+    if(t===PARK){ upk.park+=u[0]*(perks.cheapParks?0.7:1); continue; }
+    const frac=(t===POWER||t===WIND)?pU:((t===PUMP||t===RESV)?wU:((t===DUMP||t===INCIN)?gU:scale));
+    let cost=u[0]+(u[1]-u[0])*frac;
+    if(t===POLICE&&perks.cheapPolice) cost*=0.7;
+    if(t===FIRE&&perks.cheapFire) cost*=0.7;
+    if(t===POWER||t===PUMP||t===WIND||t===DUMP||t===INCIN||t===RESV) upk.util+=cost; else upk.svc+=cost;
+  }
+  upk.debt=loans.reduce((a,l)=>a+l.monthly,0);
+  upk.road*=diff.upkeep; upk.util*=diff.upkeep; upk.svc*=diff.upkeep; upk.park*=diff.upkeep;
+  upk.total=upk.road+upk.util+upk.svc+upk.park+upk.debt;
+}
+function stamp(i,r,fn){
+  const x=i%W,y=(i/W)|0;
+  for(let yy=Math.max(0,y-r);yy<=Math.min(H-1,y+r);yy++)
+    for(let xx=Math.max(0,x-r);xx<=Math.min(W-1,x+r);xx++)
+      if(Math.hypot(xx-x,yy-y)<=r) fn(idx(xx,yy));
+}
+const hasCover=(i,key)=>{
+  const b=SERVICES.findIndex(s=>s.key===key);
+  return b>=0&&(covGrid[i]&(1<<b))!==0;
+};
+function serviceCount(i){
+  let n=0;
+  SERVICES.forEach((s,bit)=>{ if(unlocked.has(s.t)&&(covGrid[i]&(1<<bit))) n++; });
+  return n;
+}
+function relevantCount(i,t){
+  const keys=NEEDS[t];
+  if(!keys) return serviceCount(i);
+  let n=0;
+  for(const k of keys) if(unlocked.has(svcByKey(k).t)&&hasCover(i,k)) n++;
+  return n;
+}
+
+// ---------- fields ----------
+function blur(src,passes){
+  let a=src,b=new Float32Array(W*H);
+  for(let p=0;p<passes;p++){
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      let s=a[idx(x,y)]*2,c=2;
+      for(const [nx,ny] of N4(x,y)) if(inb(nx,ny)){ s+=a[idx(nx,ny)]; c++; }
+      b[idx(x,y)]=s/c;
+    }
+    const t=a; a=b; b=t;
+  }
+  return a;
+}
+const SMOG_RATE=0.03; // ~2yr time constant for buildup/decay
+function computeSmog(){
+  const srcInd=new Float32Array(W*H),srcOther=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(c.t===IND&&c.dev>0) srcInd[i]=c.dev*34;
+    else if(c.t===POWER) srcOther[i]=45;
+    else if(c.t===DUMP) srcOther[i]=20;
+    else if(c.t===HIGHWAY) srcOther[i]=6;
+    else if(c.t===BOULEVARD) srcOther[i]=5;
+  }
+  const blurredInd=blur(srcInd,6),blurredOther=blur(srcOther,4);
+  for(let i=0;i<W*H;i++){
+    const target=Math.min(100,(blurredInd[i]+blurredOther[i])*3.2);
+    smog[i]+=(target-smog[i])*SMOG_RATE;
+  }
+}
+function bfsField(sources){
+  const d=new Int16Array(W*H).fill(-1);
+  const q=sources.slice();
+  for(const i of q) d[i]=0;
+  let head=0;
+  while(head<q.length){
+    const c=q[head++],x=c%W,y=(c/W)|0;
+    for(const [nx,ny] of N4(x,y)){
+      if(!inb(nx,ny)) continue;
+      const j=idx(nx,ny);
+      if(!isRoadT(g[j].t)||d[j]!==-1) continue;
+      d[j]=d[c]+1; q.push(j);
+    }
+  }
+  return d;
+}
+function roadBeside(i){
+  const x=i%W,y=(i/W)|0;
+  for(const [nx,ny] of N4(x,y)) if(inb(nx,ny)&&isTier(g[idx(nx,ny)].t)) return idx(nx,ny);
+  return -1;
+}
+function walkDown(start,field,limit){
+  if(start<0||!field||field[start]<0) return [];
+  const path=[start];
+  let cur=start,steps=0;
+  while(field[cur]>0&&steps++<limit){
+    const x=cur%W,y=(cur/W)|0;
+    let best=-1,bv=field[cur];
+    for(const [nx,ny] of N4(x,y)){
+      if(!inb(nx,ny)) continue;
+      const j=idx(nx,ny);
+      if(!isRoadT(g[j].t)||field[j]<0) continue;
+      if(field[j]<bv){ bv=field[j]; best=j; }
+    }
+    if(best<0) break;
+    cur=best; path.push(cur);
+  }
+  return path;
+}
+function computeTraffic(){
+  const jobRoads=[],homeRoads=[],hwy=[];
+  for(let i=0;i<W*H;i++){
+    if(g[i].t===HIGHWAY){ hwy.push(i); continue; }
+    const c=g[i];
+    if(c.dev===0) continue;
+    const r=roadBeside(i);
+    if(r<0) continue;
+    if(c.t===COM||c.t===IND||c.t===CIND) jobRoads.push(r);
+    else if(c.t===RES) homeRoads.push(r);
+  }
+  distJob=jobRoads.length?bfsField(jobRoads):new Int16Array(W*H).fill(-1);
+  distHome=homeRoads.length?bfsField(homeRoads):new Int16Array(W*H).fill(-1);
+  distHwy=bfsField(hwy);
+  load.fill(0);
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(c.t!==RES||c.dev===0) continue;
+    const r=roadBeside(i);
+    if(r<0) continue;
+    const people=CAP_RES[c.dev]*(busCov[i]?(1-BUS_SHARE):1);
+    if(distJob[r]>=0) for(const p of walkDown(r,distJob,70)) load[p]+=people*0.72;
+    if(distHwy[r]>=0) for(const p of walkDown(r,distHwy,70)) load[p]+=people*0.28; // out-of-town commute
+  }
+  let sum=0,cnt=0; maxCong=0;
+  for(let i=0;i<W*H;i++){
+    const t=g[i].t;
+    if(!isTier(t)) continue;
+    const cg=load[i]/ROAD_CAP[t];
+    sum+=cg; cnt++;
+    if(cg>maxCong) maxCong=cg;
+  }
+  avgCong=cnt?sum/cnt:0;
+}
+function congAt(i){ const t=g[i].t; return isTier(t)?load[i]/ROAD_CAP[t]:0; }
+function computeLand(){
+  const amen=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(c.t===PARK) amen[i]=40;
+    else if(c.t===WATER) amen[i]=perks.riverside?26:18;
+    else if(c.t===MOUNTAIN) amen[i]=14;
+    else if(c.t===TREE) amen[i]=8;
+    else if(c.t===LANDMARK) amen[i]=90;
+    else if(c.t===DUMP) amen[i]=-55;
+    else if(c.t===INCIN) amen[i]=-30;
+    else if(c.t===HIGHWAY) amen[i]=-12;
+  }
+  const am=blur(amen,3);
+  const jam=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++) if(isTier(g[i].t)) jam[i]=Math.max(0,congAt(i)-0.7)*60;
+  const jm=blur(jam,2);
+  for(let i=0;i<W*H;i++){
+    let v=clamp(44+(perks.noEmptyBonus?5:0)+am[i]*1.5+serviceCount(i)*7-smog[i]*0.55-jm[i]*1.6-crime[i]*0.28-garShort*0.12,0,100);
+    land[i]=v;
+  }
+  for(let i=0;i<W*H;i++) if(g[i].t===LANDMARK) stamp(i,5,j=>{ land[j]=100; });
+  let sum=0,cnt=0;
+  for(let i=0;i<W*H;i++){
+    if(g[i].t===RES&&g[i].dev>0){ sum+=land[i]; cnt++; }
+  }
+  avgLand=cnt?sum/cnt:0;
+}
+function computeCrime(){
+  const jobs=jobsC+jobsI+EXT_JOBS,workforce=pop*0.52;
+  const unemp=workforce>0?clamp(1-jobs/workforce,0,1):0;
+  const src=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(!isZone(c.t)||c.dev===0) continue;
+    let v=(52-land[i])*0.9+unemp*55;
+    if(hasCover(i,"police")) v*=0.3;
+    src[i]=clamp(v,0,100);
+  }
+  crime=blur(src,2);
+  let s=0,n=0;
+  for(let i=0;i<W*H;i++){
+    crime[i]=clamp(crime[i]*1.4,0,100);
+    if(isZone(g[i].t)&&g[i].dev>0){ s+=crime[i]; n++; }
+  }
+  avgCrime=n?s/n:0;
+}
+
+// ---------- economy ----------
+function recount(){
+  pop=0; jobsC=0; jobsI=0;
+  let parks=0;
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(c.t===RES) pop+=CAP_RES[c.dev];
+    else if(c.t===COM) jobsC+=CAP_COM[c.dev];
+    else if(c.t===IND||c.t===CIND) jobsI+=CAP_IND[c.dev];
+    else if(c.t===PARK) parks++;
+  }
+  const jobs=jobsC+jobsI+EXT_JOBS, workforce=pop*.52;
+  // each demand depends on the other two, so one-sided zoning stalls
+  // denominators grow with the city, otherwise every bar pins to ±1 past a few thousand people
+  const dn=pop*0.02;
+  dRes=clamp((jobs-workforce)/(60+dn),-1,1);
+  dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn),-1,1);
+  dInd=clamp((pop*0.16+jobsC*0.75-jobsI*1.05)/(40+dn),-1,1);
+  let h=74-(tax-9)*2.6;
+  h+=Math.min(10,parks*.7);
+  h+=(avgLand-50)*0.25;
+  h-=powShort*.25+watShort*.25+garShort*.22;
+  h-=clamp((avgCong-0.55)*55,0,18);
+  h-=avgCrime*0.14;
+  if(pop>0&&jobs<workforce*.7) h-=10;
+  for(const s of SERVICES) if(unlocked.has(s.t)) h+=(cover[s.key]-.5)*10;
+  happy=pinHappy?90:Math.round(clamp(h,0,100));
+  let f=(happy/72)*clamp(avgLand/55,.55,1.6)*(tax/9);
+  f*=diff.income;
+  inc.res=Math.round(pop*0.55*f);
+  inc.com=Math.round(jobsC*0.40*f);
+  inc.ind=Math.round(jobsI*0.33*f);
+  inc.total=inc.res+inc.com+inc.ind;
+  netFlow=Math.round(inc.total-upk.total);
+}
+function grow(){
+  const dOf=t=>t===RES?dRes:t===COM?dCom:dInd;
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(!isZone(c.t)||c.burning) continue;
+    if(!(c.road&&c.pow&&c.wat&&c.link)){
+      c.decay++;
+      if(c.decay>14&&c.dev>0&&Math.random()<.25){ c.dev--; c.decay=0; fleetDirty=true; }
+      continue;
+    }
+    c.decay=0;
+    const lv=land[i],svc=relevantCount(i,c.t);
+    let maxDev=1;
+    if(c.t===RES){
+      if(lv>=36&&happy>40) maxDev=2;
+      if(lv>=60&&happy>55&&svc>=2) maxDev=3;
+    } else if(c.t===COM){
+      if(lv>=30&&happy>35) maxDev=2;
+      if(lv>=50&&happy>50&&svc>=1) maxDev=3;
+    } else {
+      if(lv>=10) maxDev=2;
+      if(lv>=20&&svc>=1) maxDev=3;
+    }
+    // abandonment floor depends on what the land is for — factories tolerate their own smog
+    const floor=c.t===RES?20:c.t===COM?15:6;
+    const d=dOf(c.t);
+    if(d>.05&&c.dev<maxDev){
+      const ch=d*.075*diff.growth*(.4+lv/90)*(c.dev===0?1.5:1/(c.dev+1));
+      if(Math.random()<ch){ c.dev++; fleetDirty=true; }
+    } else if((d<-.45||lv<floor)&&c.dev>0&&Math.random()<.016){ c.dev--; fleetDirty=true; }
+  }
+}
+function igniteAt(i,reason){
+  const c=g[i];
+  if(!isZone(c.t)||c.dev===0||c.burning) return false;
+  const saved=hasCover(i,"fire");
+  c.burning=saved?2.2:5.0;
+  fires.push({i,t:c.burning,saved,spread:saved?0:2.0});
+  if(fires.length===1) sfx("siren");
+  if(reason) say(reason);
+  return true;
+}
+function hazards(){
+  if(week%6===0&&unlocked.has(FIRE)){
+    const risky=[];
+    for(let i=0;i<W*H;i++){
+      const c=g[i];
+      if(c.dev>0&&isZone(c.t)&&!c.burning&&!hasCover(i,"fire")) risky.push(i);
+    }
+    if(risky.length&&Math.random()<Math.min(.35,risky.length/280)*diff.hazard)
+      igniteAt(risky[(Math.random()*risky.length)|0],"Fire with no station in range — it will spread.");
+  }
+  if(week%8===0&&unlocked.has(POLICE)&&pop>200){
+    const hot=[];
+    for(let i=0;i<W*H;i++) if(isZone(g[i].t)&&g[i].dev>0&&crime[i]>45) hot.push(i);
+    if(hot.length&&Math.random()<Math.min(.5,hot.length/120)*diff.hazard){
+      const i=hot[(Math.random()*hot.length)|0];
+      const loss=Math.round(40+inc.total*0.25*clamp(crime[i]/100,0,1));
+      if(!infMoney) money-=loss;
+      crimes.push({i,t:3.0}); sfx("alarm");
+      say("Break-ins cost the city "+money$(loss)+". Crime is "+Math.round(crime[i])+" on that block.");
+    }
+  }
+}
+function updateFires(dt){
+  for(let k=fires.length-1;k>=0;k--){
+    const f=fires[k],c=g[f.i];
+    f.t-=dt;
+    if(!f.saved){
+      f.spread-=dt;
+      if(f.spread<=0){
+        f.spread=2.0;
+        const x=f.i%W,y=(f.i/W)|0;
+        for(const [nx,ny] of N4(x,y)) if(inb(nx,ny)&&Math.random()<0.45) igniteAt(idx(nx,ny));
+      }
+    }
+    if(f.t<=0){
+      c.burning=0;
+      if(!f.saved){ c.dev=0; fleetDirty=true; }
+      const ws=f.saved;
+      fires.splice(k,1);
+      if(!fires.length){ say(ws?"Fire crews saved the building.":"The fire burned out."); settle(); }
+    }
+  }
+  for(let k=crimes.length-1;k>=0;k--){ crimes[k].t-=dt; if(crimes[k].t<=0) crimes.splice(k,1); }
+}
+function books(){
+  if(!infMoney) money+=netFlow;
+  for(let k=loans.length-1;k>=0;k--){
+    loans[k].left-=loans[k].monthly;
+    if(loans[k].left<=0){ loans.splice(k,1); perks.paidOff=true; say("A bond has been repaid in full."); }
+  }
+  history.push({w:week,pop,money,happy,land:avgLand,cong:avgCong,crime:avgCrime});
+  taxSum+=tax; taxSamples++;
+  if(history.length>360) history.shift();
+  if(money<0&&week%12===0) say("The treasury is in the red. Raise taxes, cut back, or issue a bond.");
+}
+const BOND_MONTHS=120;                       // ten years, so the payment stays serviceable
+const bondRate=()=>perks.paidOff?1.25:1.40;
+const bondPayment=a=>a*bondRate()/BOND_MONTHS;
+const borrowLimit=()=>Math.max(10000,Math.round(inc.total*18/1000)*1000);
+function takeLoan(amount){
+  if(loans.length>=2) return say("You already have two bonds outstanding.");
+  if(amount>borrowLimit())
+    return say("Underwriters won't lend "+money$(amount)+" against "+money$(inc.total)+
+      " a month in revenue. Your limit right now is "+money$(borrowLimit())+".");
+  const total=amount*bondRate(),monthly=total/BOND_MONTHS;
+  loans.push({left:total,monthly,amount});
+  money+=amount; sfx("cash");
+  say("Issued a "+money$(amount)+" bond — "+money$(monthly)+" a month for ten years, "+
+      money$(total)+" repaid in total.");
+  updateServices(); recount(); hud();
+}
+function countType(t){ let n=0; for(let i=0;i<W*H;i++) if(g[i].t===t) n++; return n; }
+function growthBlock(){
+  if(!pop) return "waiting for the first arrivals";
+  let vacant=0,unserved=0,unlinked=0,capped=0,built=0,room=0;
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(c.t!==RES) continue;
+    if(!c.link&&c.road){ unlinked++; continue; }
+    if(!(c.road&&c.pow&&c.wat)){ unserved++; continue; }
+    if(c.dev===0){ vacant++; continue; }
+    built++;
+    const lv=land[i],svc=relevantCount(i,RES);
+    const maxDev=(lv>=60&&happy>55&&svc>=2)?3:(lv>=36&&happy>40)?2:1;
+    if(c.dev>=maxDev) capped++; else room++;
+  }
+  if(unlinked>3) return unlinked+" lots have no route to the highway";
+  if(unserved>3) return unserved+" homes lack road, power or water";
+  if(dRes<=0.05) return "no demand — not enough jobs";
+  if(!vacant&&!room) return "every home at its land-value ceiling";
+  if(!vacant&&capped>built*0.8) return "land value caps most homes";
+  if(!vacant) return "no vacant residential land";
+  return "growing";
+}
+
+// ---------- achievements ----------
+const ACHS=[
+  {id:"greenbelt",name:"Green belt",desc:"20 parks standing at once. Parks cost 30% less to run.",
+   check:()=>countType(PARK)>=20,perk:"cheapParks"},
+  {id:"safe",name:"Safe streets",desc:"Average crime under 10 for three straight years. Police upkeep −30%.",
+   hold:144,test:()=>pop>400&&avgCrime<10,perk:"cheapPolice"},
+  {id:"fireproof",name:"Fireproof",desc:"Full fire cover for three years. Fire station upkeep −30%.",
+   hold:144,test:()=>pop>400&&cover.fire>=0.995,perk:"cheapFire"},
+  {id:"freeflow",name:"Free flowing",desc:"2,000 residents with peak congestion under 60%. Road upgrades 25% cheaper.",
+   check:()=>pop>=2000&&maxCong<0.6,perk:"cheapUpgrade"},
+  {id:"cleanair",name:"Clean air",desc:"1,500 jobs in industry while average smog stays under 12. Wind farms 30% cheaper.",
+   check:()=>jobsI>=1500&&avgSmog()<12,perk:"cheapWind"},
+  {id:"riverside",name:"Riverside city",desc:"40 developed lots on the waterfront. Water frontage is worth more.",
+   check:()=>waterfrontLots()>=40,perk:"riverside"},
+  {id:"solvent",name:"Sound finances",desc:"Repay a bond in full. Future bonds carry 15% interest instead of 25%.",
+   check:()=>!!perks.paidOff,perk:"paidOff"},
+  {id:"tidy",name:"Nothing wasted",desc:"Two years with no waste backlog and 500+ residents. Landfills bill 25% less.",
+   hold:96,test:()=>pop>500&&garShort===0,perk:"cheapDump"},
+  {id:"fullhouse",name:"Every square",desc:"Every parcel you own has something built on it — no empty land left standing. Land value +5 city-wide.",
+   check:()=>pop>=3000&&allSquaresDeveloped(),perk:"noEmptyBonus"},
+  {id:"landbaron",name:"Land baron",desc:"Every parcel on the map bought and under your name.",
+   check:()=>ownedCount()===owned.length,perk:"cheapClean"},
+];
+function allSquaresDeveloped(){
+  for(let i=0;i<W*H;i++){
+    const p=parcelOf(i%W,(i/W)|0);
+    if(owned[p]&&g[i].t===EMPTY) return false;
+  }
+  return true;
+}
+function avgSmog(){
+  let s=0,n=0;
+  for(let i=0;i<W*H;i++) if(isZone(g[i].t)&&g[i].dev>0){ s+=smog[i]; n++; }
+  return n?s/n:0;
+}
+function waterfrontLots(){
+  let n=0;
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(!isZone(c.t)||c.dev===0) continue;
+    const x=i%W,y=(i/W)|0;
+    for(const [nx,ny] of N4(x,y)) if(inb(nx,ny)&&g[idx(nx,ny)].t===WATER){ n++; break; }
+  }
+  return n;
+}
+function checkAchievements(){
+  for(const a of ACHS){
+    if(achieved.has(a.id)) continue;
+    let done=false;
+    if(a.hold){
+      achTimer[a.id]=a.test()?(achTimer[a.id]||0)+1:0;
+      done=achTimer[a.id]>=a.hold;
+    } else done=a.check();
+    if(done){
+      achieved.add(a.id);
+      perks[a.perk]=true;
+      sfx("chime");
+      say("Commendation earned — "+a.name+". "+a.desc.split(". ").slice(1).join(". "));
+    }
+  }
+}
+function runStats(){
+  let peakPop=0,peakMoney=0,lowHappy=100,happySum=0,landSum=0,congSum=0,crimeSum=0,n=0;
+  for(const h of history){
+    peakPop=Math.max(peakPop,h.pop); peakMoney=Math.max(peakMoney,h.money);
+    if(h.pop>200){
+      lowHappy=Math.min(lowHappy,h.happy); happySum+=h.happy;
+      landSum+=h.land; congSum+=(h.cong||0); crimeSum+=(h.crime||0); n++;
+    }
+  }
+  return {peakPop,peakMoney,lowHappy,
+    avgHappy:n?happySum/n:happy, avgLand:n?landSum/n:avgLand,
+    avgCong:n?congSum/n:avgCong, avgCrime:n?crimeSum/n:avgCrime};
+}
+function checkUnlocks(){
+  let changed=false;
+  for(const t of TOOLS){
+    if(t.unlock>0&&!unlocked.has(t.id)&&pop>=t.unlock){
+      unlocked.add(t.id); changed=true;
+      say("Unlocked: "+t.name+" at "+t.unlock.toLocaleString()+" residents.");
+    }
+  }
+  if(won&&!unlocked.has(CIND)){
+    unlocked.add(CIND); changed=true;
+    say("Charter complete — clean industrial zoning is now available. Zero smog, higher cost.");
+  }
+  if(changed) buildTools();
+  if(!won&&pop>=6000&&money>0&&countType(LANDMARK)>0&&runStats().avgHappy>=60){
+    won=true; showEnding();
+  }
+}
+const PRESET_MULT={Easy:0.85,Normal:1.0,Hard:1.15,Brutal:1.3};
+function diffMultiplier(){
+  if(PRESET_MULT[diff.name]!==undefined) return PRESET_MULT[diff.name];
+  const h=[
+    1-(diff.cash-5000)/55000,
+    1-(diff.income-0.6)/1.0,
+    (diff.upkeep-0.6)/1.0,
+    (diff.parcel-0.5)/1.5,
+    diff.hazard/2.0,
+    1-(diff.growth-0.6)/1.0,
+  ].map(v=>clamp(v,0,1));
+  return 0.8+0.5*(h.reduce((a,b)=>a+b,0)/h.length);
+}
+function computeScore(avgHappy,finalLand,avgCongR,avgCrimeR){
+  const speed=clamp(20*1400/Math.max(week,1),0,20);
+  const happiness=clamp(20*avgHappy/100,0,20);
+  const avgTax=taxSamples?taxSum/taxSamples:tax;
+  const fiscal=clamp(20*(20-avgTax)/17,0,20);
+  const livability=clamp(20-avgCongR*16-avgCrimeR*0.16,0,20);
+  const achPts=clamp(0.5*achieved.size,0,4);
+  const prosperity=achPts+clamp(16*finalLand/100,0,16);
+  const base=speed+happiness+fiscal+livability+prosperity;
+  const mult=diffMultiplier();
+  return {speed,happiness,fiscal,livability,prosperity,base,mult,final:Math.round(base*mult)};
+}
+function showEnding(){
+  sfx("win");
+  const years=(week/48).toFixed(1),reached=dateStr(week);
+  const rs=runStats(),peakPop=rs.peakPop,peakMoney=rs.peakMoney,
+        lowHappy=rs.lowHappy,avgHappy=rs.avgHappy;
+  const avgTax=taxSamples?Math.round(taxSum/taxSamples):tax;
+  const sc=computeScore(avgHappy,avgLand,rs.avgCong,rs.avgCrime);
+  let best=0;
+  try{ best=parseInt(localStorage.getItem("willowflats-best")||"0",10)||0; }catch(e){}
+  const isBest=sc.final>best;
+  if(isBest){ best=sc.final; try{ localStorage.setItem("willowflats-best",String(best)); }catch(e){} }
+  $("ovK").textContent="Charter complete · "+diff.name+" · "+years+" years · Score "+sc.final+
+    (isBest?" · New best!":" · Best: "+best);
+  $("ovT").textContent="Willow Flats is a metropolis";
+  $("ovP").innerHTML="You crossed <b>6,000 residents</b>, averaged <b>"+Math.round(avgHappy)+
+    "% happiness</b>, stayed solvent, and raised the Willow Tower — reaching <b>"+reached+"</b>, "+
+    "<b>"+years+" years</b> in, on "+diff.name.toLowerCase()+".";
+  $("endStats").innerHTML=
+    row("Score",sc.final+" ("+Math.round(sc.base)+" base × "+sc.mult.toFixed(2)+" "+diff.name.toLowerCase()+")")+
+    row("Personal best",isBest?sc.final+" (this run)":best)+
+    row("— Speed",Math.round(sc.speed)+" / 20")+
+    row("— Happiness",Math.round(sc.happiness)+" / 20")+
+    row("— Low taxation",Math.round(sc.fiscal)+" / 20")+
+    row("— Livability",Math.round(sc.livability)+" / 20")+
+    row("— Prosperity (land + commendations)",Math.round(sc.prosperity)+" / 20")+
+    row("Charter reached",reached)+
+    row("Years elapsed",years)+
+    row("Peak population",Math.round(peakPop).toLocaleString())+
+    row("Peak treasury",money$(peakMoney))+
+    row("Final land value",Math.round(avgLand))+
+    row("Commendations earned",achieved.size+" of "+ACHS.length)+
+    row("Average happiness",Math.round(avgHappy)+"%")+
+    row("Lowest happiness",lowHappy+"%")+
+    row("Peak tax rate",peakTax+"%")+
+    row("Average tax rate",avgTax+"%")+
+    row("Jobs created",(jobsC+jobsI).toLocaleString())+
+    row("Road tiles laid",(countType(STREET)+countType(AVENUE)+countType(BOULEVARD)).toLocaleString())+
+    row("Parcels bought",(ownedCount()-4)+" of "+(owned.length-4))+
+    row("Average congestion",Math.round(rs.avgCong*100)+"%")+
+    row("Average crime",Math.round(rs.avgCrime));
+  $("endAch").innerHTML = achieved.size
+    ? ACHS.filter(a=>achieved.has(a.id)).map(a=>"✓ "+a.name).join(" &nbsp;·&nbsp; ")+
+      (achieved.size<ACHS.length?"<br><span style='opacity:.6'>Missed: "+
+        ACHS.filter(a=>!achieved.has(a.id)).map(a=>a.name).join(", ")+"</span>":"")
+    : "None earned — there are "+ACHS.length+" to find.";
+  $("over").classList.add("show");
+  drawEndGraph();
+}
+function drawEndGraph(){
+  const gc=$("endGraph");
+  const dpr=window.devicePixelRatio||1;
+  const cw=gc.clientWidth||900,ch=gc.clientHeight||260;
+  const bw=Math.round(cw*dpr),bh=Math.round(ch*dpr);
+  if(gc.width!==bw||gc.height!==bh){ gc.width=bw; gc.height=bh; }
+  const c=gc.getContext("2d");
+  c.setTransform(dpr,0,0,dpr,0,0);
+  const w=cw,h=ch;
+  c.clearRect(0,0,w,h);
+  c.fillStyle="#0e1920"; c.fillRect(0,0,w,h);
+  if(history.length<2) return;
+  const n=history.length;
+  for(const sr of SERIES){
+    let max=0;
+    for(const pt of history) max=Math.max(max,Math.abs(pt[sr.k]));
+    if(max<=0) max=1;
+    c.strokeStyle=sr.col; c.lineWidth=3; c.beginPath();
+    history.forEach((pt,i)=>{
+      const x=10+(w-20)*(i/(n-1)), y=12+(h-40)*(1-clamp(pt[sr.k]/max,0,1));
+      i?c.lineTo(x,y):c.moveTo(x,y);
+    });
+    c.stroke();
+  }
+  c.font="15px 'Barlow Semi Condensed',sans-serif";
+  let lx=12;
+  for(const sr of SERIES){
+    c.fillStyle=sr.col; c.fillRect(lx,h-22,12,4);
+    c.fillStyle="#8ea6b4"; c.fillText(sr.name,lx+17,h-15);
+    lx+=c.measureText(sr.name).width+42;
+  }
+}
+function tick(){
+  week++;
+  updateServices(); computeSmog(); computeTraffic(); computeCrime(); computeLand();
+  grow(); hazards(); recount();
+  if(week%4===0) books();
+  checkUnlocks(); checkAchievements(); maybeAdvance();
+  if(fleetDirty&&week%4===0) rebuildFleet();
+  renderBase(); hud();
+  if(week%9===0) advise();
+  if(week%40===0) saveGame(true);
+}
+let advisoryActive=false;
+function advise(){
+  if(fires.length) return;
+  let unlinked=0;
+  for(let i=0;i<W*H;i++){ const c=g[i]; if(isZone(c.t)&&c.road&&!c.link) unlinked++; }
+  let un=0;
+  for(let i=0;i<W*H;i++){ const c=g[i]; if(isZone(c.t)&&!(c.road&&c.pow&&c.wat)) un++; }
+  const checks=[
+    [unlinked>3, unlinked+" lots have no route back to the highway ramp — nobody can move in."],
+    [powShort>0, "Power shortage — "+powShort+"% browning out. Need "+
+      Math.ceil((powUse-powCap)/COAL_CAP)+" more plant(s)."],
+    [watShort>0, "Water shortage — "+watShort+"% running dry. Need "+
+      Math.ceil((watUse-watCap)/PUMP_CAP)+" more tower(s)."],
+    [garShort>0, "Waste is piling up — "+garShort+"% uncollected. Need "+
+      Math.ceil((garUse-garCap)/DUMP_CAP)+" more landfill(s)."],
+    [un>6, un+" zoned lots still have no road, power or water."],
+    [maxCong>1.4, "Gridlock. Upgrade those streets"+(unlocked.has(BUS)?" or add bus stops.":".")],
+    [avgCrime>45&&unlocked.has(POLICE), "Crime averaging "+Math.round(avgCrime)+
+      ". Police posts cut it by two thirds in range."],
+    [dCom>.5, "Shops are in short supply — zone commercial."],
+    [dInd>.5, "Factories are in short supply — zone industrial."],
+    [pop>500&&growthBlock()!=="growing", "Population has plateaued: "+growthBlock()+"."],
+    [happy<45, "Residents are unhappy. Lower taxes, add parks, or extend services."],
+  ];
+  const hit=checks.find(c=>c[0]);
+  if(hit){ advisoryActive=true; say(hit[1]); return; }
+  // nothing wrong right now — if the ticker is still showing an old warning, replace it
+  // so a solved problem (e.g. "need 1 more landfill") doesn't sit there looking unsolved
+  if(advisoryActive){ advisoryActive=false; say("Running smoothly — no problems flagged."); }
+}
+function say(t){ msgTimer=26; if(msgEl){ msgEl.textContent=t; msgEl.classList.add("alert"); } }
+
+// ---------- placement ----------
+let brokeAt=0;
+function broke(){
+  if(Date.now()-brokeAt<2000) return;
+  brokeAt=Date.now(); say("Not enough money. Wait for taxes, or issue a bond.");
+}
+function toolCost(t){
+  let c=byId(t).cost;
+  if(t===PARK&&perks.cheapParks) c*=0.7;
+  if(t===WIND&&perks.cheapWind) c*=0.7;
+  if(t===CIND&&perks.cheapClean) c*=0.85;
+  return Math.round(c);
+}
+function costAt(t,c){
+  if(t===STREET&&c.t===WATER) return 70;
+  return toolCost(t);
+}
+const BUILD_COST={[STREET]:10,[AVENUE]:45,[BOULEVARD]:165,[RES]:24,[COM]:28,[IND]:32,
+  [POWER]:1600,[PUMP]:600,[RESV]:1800,[DUMP]:700,[INCIN]:3200,[PARK]:90,[FIRE]:520,[POLICE]:640,
+  [CLINIC]:950,[SCHOOL]:1200,[BUS]:300,[WIND]:2400,[LANDMARK]:100000,[CIND]:60};
+// selling a site back gets you 40% of what it cost — a way out of a debt spiral
+function refundFor(c){
+  if(c.t===TREE||c.t===EMPTY||c.t===WATER||c.t===HIGHWAY) return 0;
+  let b=BUILD_COST[c.t]||0;
+  if(c.bridge) b+=60;
+  return Math.round(b*0.4);
+}
+function isProtected(c,t){
+  if(c.t===EMPTY||c.t===TREE||c.t===WATER) return false;
+  if(isZone(c.t)&&c.dev===0&&isZone(t)) return false;
+  return true;
+}
+function lineTiles(a,b){
+  const out=[];
+  let x0=a.x,y0=a.y;
+  const dx=Math.abs(b.x-x0),sx=x0<b.x?1:-1;
+  const dy=-Math.abs(b.y-y0),sy=y0<b.y?1:-1;
+  let err=dx+dy,guard=0;
+  while(guard++<220){
+    out.push({x:x0,y:y0});
+    if(x0===b.x&&y0===b.y) break;
+    const e2=2*err;
+    if(e2>=dy){ err+=dy; x0+=sx; }
+    if(e2<=dx){ err+=dx; y0+=sy; }
+  }
+  return out;
+}
+function snapTarget(cur){
+  if(!straightDrag||!dragStart) return cur;
+  const dx=cur.x-dragStart.x,dy=cur.y-dragStart.y;
+  if(!dragAxis){
+    if(Math.abs(dx)>=2||Math.abs(dy)>=2) dragAxis=Math.abs(dx)>=Math.abs(dy)?"x":"y";
+    else return cur;
+  } else if(dragAxis==="x"&&Math.abs(dy)>3&&Math.abs(dy)>Math.abs(dx)){ dragStart={x:cur.x,y:dragStart.y}; dragAxis="y"; }
+  else if(dragAxis==="y"&&Math.abs(dx)>3&&Math.abs(dx)>Math.abs(dy)){ dragStart={x:dragStart.x,y:cur.y}; dragAxis="x"; }
+  return dragAxis==="x"?{x:cur.x,y:dragStart.y}:{x:dragStart.x,y:cur.y};
+}
+function place(x,y){
+  if(!inb(x,y)) return;
+  const i=idx(x,y),c=g[i],t=tool.id;
+  if(t===UPGRADE) return;
+  if(tool.unlock>0&&!unlocked.has(t)) return;
+  if(c.t===HIGHWAY){ if(!painting) say("The highway isn't yours to touch."); return; }
+  if(!ownedAt(x,y)) return;   // handled by the parcel-purchase click
+  if(t!==BULLDOZE&&protectBuilt&&isProtected(c,t)){
+    if(!painting) say("Already built on. Bulldoze first, or turn off Protect built lots.");
+    return;
+  }
+  if(t===BULLDOZE){
+    if(c.t===EMPTY||c.t===WATER||c.t===MOUNTAIN) return;
+    noteChange(i);
+    const wasLandmark=c.t===LANDMARK;
+    const back=refundFor(c);
+    if(!infMoney) money+=back;
+    if(c.bridge){ c.t=WATER; c.bridge=false; } else c.t=EMPTY;
+    c.dev=0; c.decay=0; c.burning=0;
+    if(!painting&&back>0) say("Cleared — "+money$(back)+" recovered from the site.");
+    if(wasLandmark) buildTools();
+  } else {
+    if(c.t===t) return;
+    if(c.t===MOUNTAIN) return;
+    if(c.t===WATER&&t!==STREET) return;
+    if(c.bridge&&t!==STREET) return;
+    if(t===LANDMARK&&countType(LANDMARK)>0) return;
+    const cost=costAt(t,c);
+    if(!infMoney&&money<cost) return broke();
+    noteChange(i);
+    if(!infMoney) money-=cost;
+    if(t===STREET&&c.t===WATER) c.bridge=true;
+    c.t=t; c.dev=0; c.decay=0; c.burning=0;
+    if(t===LANDMARK) buildTools();
+  }
+  fleetDirty=true;
+  if(!tool.per) sfx("build");
+  if(speed===0&&!noticedPlay&&countType(RES)>0&&powCap>0&&watCap>0){
+    noticedPlay=true;
+    say("That's a street, power, water and somewhere to live. Press Play — or space — to let people arrive.");
+    $("speed").classList.add("glow");
+  }
+  if(painting){ pendingUpdate=true; renderBase(); hud(); }
+  else settle();
+}
+function settle(){
+  pendingUpdate=false;
+  updateServices(); computeSmog(); computeTraffic(); computeCrime(); computeLand();
+  recount(); checkUnlocks(); checkAchievements(); maybeAdvance();
+  rebuildFleet(); rebuildBuses(); renderBase(); hud();
+}
+
+// ---------- upgrade / buy land ----------
+function roadPath(a,b){
+  if(a<0||b<0||!isTier(g[a].t)||!isTier(g[b].t)) return [];
+  const prev=new Int32Array(W*H).fill(-2);
+  prev[a]=-1;
+  const q=[a]; let head=0;
+  while(head<q.length){
+    const c=q[head++];
+    if(c===b) break;
+    const x=c%W,y=(c/W)|0;
+    for(const [nx,ny] of N4(x,y)){
+      if(!inb(nx,ny)) continue;
+      const j=idx(nx,ny);
+      if(!isTier(g[j].t)||prev[j]!==-2) continue;
+      prev[j]=c; q.push(j);
+    }
+  }
+  if(prev[b]===-2) return [];
+  const out=[]; let cur=b;
+  while(cur!==-1){ out.push(cur); cur=prev[cur]; }
+  return out;
+}
+function upgradeCost(path){
+  let n=0,cost=0;
+  const mult=perks.cheapUpgrade?0.75:1;
+  for(const i of path){
+    const nt=NEXT_TIER[g[i].t];
+    if(!nt||!ownedAt(i%W,(i/W)|0)) continue;
+    n++; cost+=TIER_COST[nt]*(g[i].bridge?3.5:1)*mult;
+  }
+  return {n,cost:Math.round(cost)};
+}
+function clearOverlayTools(){
+  upgAnchor=-1; upgPath=[]; upgLocked=false; buyParcel=-1; boxStart=null; boxEnd=null;
+  boxMode=null; bullPath=[];
+  const el=$("confirm"); if(el) el.classList.remove("show");
+}
+function parcelBuyable(p){
+  if(owned[p]) return false;
+  const px=p%PW,py=(p/PW)|0;
+  for(const [nx,ny] of N4(px,py))
+    if(nx>=0&&ny>=0&&nx<PW&&ny<PH&&owned[ny*PW+nx]) return true;
+  return false;
+}
+function showUpgradeConfirm(){
+  const {n,cost}=upgradeCost(upgPath);
+  if(!n){ clearOverlayTools(); say("Nothing there to upgrade."); return; }
+  const tiers={};
+  for(const i of upgPath){ const nt=NEXT_TIER[g[i].t]; if(nt) tiers[TIER_NAME[nt]]=(tiers[TIER_NAME[nt]]||0)+1; }
+  const desc=Object.entries(tiers).map(([k,v])=>v+" → "+k).join(", ");
+  $("confirmTxt").textContent=desc+" · "+money$(cost);
+  $("confirm").classList.add("show");
+}
+function showBulldozeConfirm(){
+  if(!bullPath.length){ clearOverlayTools(); say("Nothing there to clear."); return; }
+  const refund=bullPath.reduce((a,i)=>a+refundFor(g[i]),0);
+  $("confirmTxt").textContent="Clear "+bullPath.length+" tile"+(bullPath.length>1?"s":"")+
+    " · +"+money$(refund)+" refund";
+  $("confirm").classList.add("show");
+}
+$("confirmYes").onclick=()=>{
+  if(buyParcel>=0){
+    const cost=parcelCost();
+    if(!infMoney&&money<cost) return broke();
+    beginAction("land purchase");
+    recording.landBuy=true;
+    if(!infMoney) money-=cost;
+    owned[buyParcel]=1;
+    endAction(); clearOverlayTools(); settle();
+    sfx("cash");
+    say("Parcel bought. The next costs "+money$(parcelCost())+".");
+    buildTools();
+    return;
+  }
+  if(bullPath.length){
+    beginAction("demolition");
+    let refund=0;
+    for(const i of bullPath){
+      const c=g[i];
+      if(c.t===EMPTY||c.t===WATER||c.t===HIGHWAY) continue;
+      noteChange(i);
+      refund+=refundFor(c);
+      if(c.bridge){ c.t=WATER; c.bridge=false; } else c.t=EMPTY;
+      c.dev=0; c.decay=0; c.burning=0;
+    }
+    if(!infMoney) money+=refund;
+    fleetDirty=true;
+    endAction(); clearOverlayTools(); settle();
+    say("Cleared — "+money$(refund)+" recovered from the site.");
+    return;
+  }
+  const {cost}=upgradeCost(upgPath);
+  if(!infMoney&&money<cost) return broke();
+  beginAction("road upgrade");
+  for(const i of upgPath){
+    const nt=NEXT_TIER[g[i].t];
+    if(!nt||!ownedAt(i%W,(i/W)|0)) continue;
+    noteChange(i); g[i].t=nt;
+  }
+  if(!infMoney) money-=cost;
+  endAction(); clearOverlayTools(); settle();
+  say("Road upgraded.");
+};
+$("confirmNo").onclick=()=>clearOverlayTools();
+
+// ---------- rendering ----------
+const GRASS=["#7ea162","#789b5d","#84a768","#739459"];
+const rnd=(s,n)=>{const v=Math.sin(s*12.9898+n*78.233)*43758.5453;return v-Math.floor(v);};
+const inset=t=>t===HIGHWAY?0:t===BOULEVARD?0.8:t===AVENUE?2:3.5;
+
+function renderBase(){
+  bx.clearRect(0,0,W*TS,H*TS);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const c=g[idx(x,y)],px=x*TS,py=y*TS;
+    if(isWet(c)){ drawWater(x,y,px,py); continue; }
+    bx.fillStyle=GRASS[c.seed%4]; bx.fillRect(px,py,TS,TS);
+    if(c.seed%7===0){ bx.fillStyle="rgba(60,88,48,.35)"; bx.fillRect(px+3+(c.seed%6),py+4+(c.seed%5),2,1); }
+    shoreline(x,y,px,py);
+  }
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const c=g[idx(x,y)];
+    if(isRoadT(c.t)) c.bridge?drawBridge(x,y,x*TS,y*TS,c.t):drawRoadTile(x,y,x*TS,y*TS,c.t);
+  }
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const c=g[idx(x,y)],px=x*TS,py=y*TS;
+    if(isRoadT(c.t)) continue;
+    switch(c.t){
+      case TREE: drawTree(px,py,c); break;
+      case MOUNTAIN: drawMountain(px,py,c,x,y); break;
+      case PARK: drawPark(px,py,c); break;
+      case POWER: drawCoal(px,py); break;
+      case WIND: drawWind(px,py); break;
+      case PUMP: drawTower(px,py); break;
+      case RESV: drawTower(px,py,true); break;
+      case DUMP: drawDump(px,py,c); break;
+      case INCIN: drawIncin(px,py,true); break;
+      case BUS: drawBusStop(px,py); break;
+      case FIRE: drawCivic(px,py,"#e0503c","#a83527"); break;
+      case POLICE: drawCivic(px,py,"#5b7de0","#3d55a8"); break;
+      case CLINIC: drawCivic(px,py,"#eae4da","#b3aca0"); break;
+      case SCHOOL: drawCivic(px,py,"#d6ae32","#9c7c1d"); break;
+      case LANDMARK: drawLandmark(px,py); break;
+      case RES: case COM: case IND: case CIND: drawZone(c,px,py); break;
+    }
+  }
+  for(let p=0;p<owned.length;p++){
+    if(owned[p]) continue;
+    const px=(p%PW)*PS*TS,py=((p/PW)|0)*PS*TS;
+    bx.fillStyle="rgba(12,22,30,.6)"; bx.fillRect(px,py,PS*TS,PS*TS);
+  }
+  bx.strokeStyle="rgba(226,214,180,.55)"; bx.lineWidth=1.5; bx.setLineDash([6,5]);
+  for(let p=0;p<owned.length;p++){
+    if(!owned[p]) continue;
+    const pxi=p%PW,pyi=(p/PW)|0,px=pxi*PS*TS,py=pyi*PS*TS,S=PS*TS;
+    if(pyi===0||!owned[(pyi-1)*PW+pxi]){ bx.beginPath(); bx.moveTo(px,py); bx.lineTo(px+S,py); bx.stroke(); }
+    if(pyi===PH-1||!owned[(pyi+1)*PW+pxi]){ bx.beginPath(); bx.moveTo(px,py+S); bx.lineTo(px+S,py+S); bx.stroke(); }
+    if(pxi===0||!owned[pyi*PW+pxi-1]){ bx.beginPath(); bx.moveTo(px,py); bx.lineTo(px,py+S); bx.stroke(); }
+    if(pxi===PW-1||!owned[pyi*PW+pxi+1]){ bx.beginPath(); bx.moveTo(px+S,py); bx.lineTo(px+S,py+S); bx.stroke(); }
+  }
+  bx.setLineDash([]);
+}
+function drawWater(x,y,px,py){
+  const d=(Math.sin(x*.6)+Math.cos(y*.5))*.5;
+  bx.fillStyle=d>.2?"#3d7a90":d<-.2?"#356b80":"#3a7488";
+  bx.fillRect(px,py,TS,TS);
+  if((x*3+y*5)%7===0){ bx.fillStyle="rgba(200,230,240,.16)"; bx.fillRect(px+2,py+5+((x+y)%4),7,1); }
+}
+function shoreline(x,y,px,py){
+  const w=(dx,dy)=>inb(x+dx,y+dy)&&isWet(g[idx(x+dx,y+dy)]);
+  bx.fillStyle="#c2b083";
+  if(w(0,-1)) bx.fillRect(px,py,TS,2);
+  if(w(0,1))  bx.fillRect(px,py+TS-2,TS,2);
+  if(w(-1,0)) bx.fillRect(px,py,2,TS);
+  if(w(1,0))  bx.fillRect(px+TS-2,py,2,TS);
+}
+function roadAt(x,y){ return inb(x,y)&&isRoadT(g[idx(x,y)].t)?g[idx(x,y)].t:null; }
+function drawRoadTile(x,y,px,py,t){
+  if(t===HIGHWAY){
+    bx.fillStyle="#33383d"; bx.fillRect(px,py,TS,TS);
+    bx.fillStyle="#e2d489";
+    for(let i=0;i<TS;i+=6) bx.fillRect(px+TS/2-.5,py+i,1,4);
+    bx.fillStyle="rgba(235,235,225,.5)";
+    bx.fillRect(px+1,py,1,TS); bx.fillRect(px+TS-2,py,1,TS);
+    return;
+  }
+  const self=inset(t);
+  const n=roadAt(x,y-1),s=roadAt(x,y+1),w=roadAt(x-1,y),e=roadAt(x+1,y);
+  const vRun=(n!=null&&s!=null),hRun=(e!=null&&w!=null);
+  const lateral=(nt,dx,dy)=>{
+    if(nt==null) return false;
+    if(dx) return (n!=null||s!=null)&&(roadAt(x+dx,y-1)!=null||roadAt(x+dx,y+1)!=null);
+    return (e!=null||w!=null)&&(roadAt(x-1,y+dy)!=null||roadAt(x+1,y+dy)!=null);
+  };
+  bx.fillStyle="#b3b7a9"; bx.fillRect(px,py,TS,TS);
+  bx.fillStyle=t===BOULEVARD?"#343a40":t===AVENUE?"#3a4046":"#41474d";
+  bx.fillRect(px+self,py+self,TS-2*self,TS-2*self);
+  const arm=v=>Math.min(self,inset(v));
+  if(n!=null){ const a=arm(n); bx.fillRect(px+a,py,TS-2*a,TS/2); }
+  if(s!=null){ const a=arm(s); bx.fillRect(px+a,py+TS/2,TS-2*a,TS/2); }
+  if(w!=null){ const a=arm(w); bx.fillRect(px,py+a,TS/2,TS-2*a); }
+  if(e!=null){ const a=arm(e); bx.fillRect(px+TS/2,py+a,TS/2,TS-2*a); }
+  bx.fillStyle="#9aa08f";
+  if(lateral(e,1,0)) bx.fillRect(px+TS-1,py,1,TS);
+  if(lateral(w,-1,0)) bx.fillRect(px,py,1,TS);
+  if(lateral(n,0,-1)) bx.fillRect(px,py,TS,1);
+  if(lateral(s,0,1)) bx.fillRect(px,py+TS-1,TS,1);
+  bx.fillStyle="#e2d489";
+  if(vRun&&hRun){ bx.fillStyle="rgba(226,212,137,.3)"; bx.fillRect(px+6,py+6,4,4); }
+  else if(hRun){
+    if(t===BOULEVARD){ bx.fillStyle="#8ea08a"; bx.fillRect(px,py+TS/2-1.5,TS,3); bx.fillStyle="#e2d489";
+      bx.fillRect(px,py+3,TS,.9); bx.fillRect(px,py+TS-4,TS,.9); }
+    else if(t===AVENUE){ bx.fillRect(px,py+TS/2-1.7,TS,1); bx.fillRect(px,py+TS/2+.7,TS,1); }
+    else for(let i=1;i<TS;i+=6) bx.fillRect(px+i,py+TS/2-.5,3,1);
+  } else if(vRun){
+    if(t===BOULEVARD){ bx.fillStyle="#8ea08a"; bx.fillRect(px+TS/2-1.5,py,3,TS); bx.fillStyle="#e2d489";
+      bx.fillRect(px+3,py,.9,TS); bx.fillRect(px+TS-4,py,.9,TS); }
+    else if(t===AVENUE){ bx.fillRect(px+TS/2-1.7,py,1,TS); bx.fillRect(px+TS/2+.7,py,1,TS); }
+    else for(let i=1;i<TS;i+=6) bx.fillRect(px+TS/2-.5,py+i,1,3);
+  }
+  if(t!==STREET){
+    bx.fillStyle="rgba(238,238,228,.5)";
+    if(n==null) bx.fillRect(px+self,py+self,TS-2*self,.9);
+    if(s==null) bx.fillRect(px+self,py+TS-self-.9,TS-2*self,.9);
+    if(w==null) bx.fillRect(px+self,py+self,.9,TS-2*self);
+    if(e==null) bx.fillRect(px+TS-self-.9,py+self,.9,TS-2*self);
+  }
+}
+function drawBridge(x,y,px,py,t){
+  const R=(dx,dy)=>inb(x+dx,y+dy)&&isRoadT(g[idx(x+dx,y+dy)].t);
+  const vert=(R(0,-1)||R(0,1))&&!(R(1,0)||R(-1,0));
+  const w=t===BOULEVARD?15:t===AVENUE?14:12,off=(TS-w)/2;
+  bx.fillStyle="rgba(10,25,35,.35)";
+  if(vert) bx.fillRect(px+off+1,py+2,w,TS); else bx.fillRect(px+2,py+off+1,TS,w);
+  bx.fillStyle="#6b5a48";
+  if(vert) bx.fillRect(px+off,py,w,TS); else bx.fillRect(px,py+off,TS,w);
+  bx.fillStyle="#8a7660";
+  if(vert){ for(let i=0;i<TS;i+=4) bx.fillRect(px+off,py+i,w,2); }
+  else    { for(let i=0;i<TS;i+=4) bx.fillRect(px+i,py+off,2,w); }
+  bx.fillStyle="#d5cbb8";
+  if(vert){ bx.fillRect(px+off-1,py,1.5,TS); bx.fillRect(px+off+w,py,1.5,TS); }
+  else    { bx.fillRect(px,py+off-1,TS,1.5); bx.fillRect(px,py+off+w,TS,1.5); }
+}
+// mountains render as one landform. Height is sampled below tile resolution and interpolated
+// from shared corners, so colour and shading flow continuously across the whole range instead
+// of stepping tile by tile. The outer fringe fades into the grass on every side.
+const MT_SUB=4,MT_SNOW=0.62;
+function mtH(x,y){
+  if(!inb(x,y)) return 0;
+  const i=idx(x,y);
+  return g[i].t===MOUNTAIN?(mountH?mountH[i]:1):0;
+}
+function mtCorner(x,y){ return (mtH(x-1,y-1)+mtH(x,y-1)+mtH(x-1,y)+mtH(x,y))/4; }
+// a continuous ramp rather than discrete bands: meadow → scrub → rock → pale rock → snow
+const MT_STOPS=[[0.00,[104,118,88]],[0.28,[118,120,104]],[0.52,[124,126,129]],
+                [0.74,[152,157,163]],[0.88,[198,204,210]],[1.00,[240,244,247]]];
+function mtRamp(t){
+  for(let k=0;k<MT_STOPS.length-1;k++){
+    const a=MT_STOPS[k],b=MT_STOPS[k+1];
+    if(t<=b[0]){
+      const f=(t-a[0])/Math.max(1e-6,b[0]-a[0]);
+      return [a[1][0]+(b[1][0]-a[1][0])*f,a[1][1]+(b[1][1]-a[1][1])*f,a[1][2]+(b[1][2]-a[1][2])*f];
+    }
+  }
+  return MT_STOPS[MT_STOPS.length-1][1];
+}
+function drawMountain(px,py,c,x,y){
+  const c00=mtCorner(x,y),c10=mtCorner(x+1,y),c01=mtCorner(x,y+1),c11=mtCorner(x+1,y+1);
+  if(c00<=0&&c10<=0&&c01<=0&&c11<=0) return;
+  const S=TS/MT_SUB;
+  const snowJit=(rnd(c.seed,2)-0.5)*0.07; // ragged snowline, steady per tile
+  for(let sy=0;sy<MT_SUB;sy++) for(let sx=0;sx<MT_SUB;sx++){
+    const u=(sx+0.5)/MT_SUB,v=(sy+0.5)/MT_SUB;
+    const h=(c00*(1-u)+c10*u)*(1-v)+(c01*(1-u)+c11*u)*v;
+    if(h<=0.03) continue;
+    let t=clamp(h/mtMax,0,1);
+    if(t>MT_SNOW) t=clamp(t+snowJit,0,1); // jitter only bites near the snowline
+    // slope of the interpolated surface, lit from the north-west
+    const du=(c10-c00)*(1-v)+(c11-c01)*v;
+    const dv=(c01-c00)*(1-u)+(c11-c10)*u;
+    const shade=clamp(0.5+(du+dv)*0.34,0,1);
+    const col=mtRamp(t),k=0.76+0.48*shade;
+    const a=clamp(h/0.85,0,1); // fringe fades into the grass on every side
+    bx.fillStyle="rgba("+Math.round(clamp(col[0]*k,0,255))+","+Math.round(clamp(col[1]*k,0,255))+
+                 ","+Math.round(clamp(col[2]*k,0,255))+","+a.toFixed(3)+")";
+    bx.fillRect(px+sx*S,py+sy*S,S+0.5,S+0.5);
+  }
+}
+function drawTree(px,py,c){
+  const n=1+c.seed%3;
+  for(let k=0;k<n;k++){
+    const ox=3+rnd(c.seed,k)*9,oy=3+rnd(c.seed,k+9)*9,r=2.2+rnd(c.seed,k+3)*1.9;
+    bx.fillStyle="rgba(30,48,28,.28)"; bx.beginPath(); bx.arc(px+ox+1,py+oy+1.5,r,0,7); bx.fill();
+    bx.fillStyle="#3f6437"; bx.beginPath(); bx.arc(px+ox,py+oy,r,0,7); bx.fill();
+    bx.fillStyle="#54804a"; bx.beginPath(); bx.arc(px+ox-r*.28,py+oy-r*.32,r*.62,0,7); bx.fill();
+  }
+}
+function drawPark(px,py,c){
+  bx.fillStyle="#4a8f57"; bx.fillRect(px+1,py+1,TS-2,TS-2);
+  bx.fillStyle="#d8cca4"; bx.fillRect(px+1,py+7,TS-2,2);
+  for(let k=0;k<2;k++){
+    const ox=4+rnd(c.seed,k)*8,oy=k?12:4;
+    bx.fillStyle="#2f6f45"; bx.beginPath(); bx.arc(px+ox,py+oy,2.4,0,7); bx.fill();
+  }
+}
+function boxD(px,py,x,y,w,h,face,side,top){
+  bx.fillStyle="rgba(15,25,20,.3)"; bx.fillRect(px+x+1.5,py+y+1.5,w,h);
+  bx.fillStyle=face; bx.fillRect(px+x,py+y,w,h);
+  bx.fillStyle=side; bx.fillRect(px+x+w-2,py+y,2,h);
+  if(top){ bx.fillStyle=top; bx.fillRect(px+x,py+y,w,2); }
+}
+function drawCoal(px,py){
+  bx.fillStyle="#5a5147"; bx.fillRect(px+1,py+1,TS-2,TS-2);
+  boxD(px,py,2,6,12,8,"#8a4634","#6b3527","#a9573f");
+  bx.fillStyle="#6d6259"; bx.fillRect(px+4,py+1,3,7); bx.fillRect(px+9,py+2,3,6);
+  bx.fillStyle="rgba(220,220,215,.55)"; bx.beginPath(); bx.arc(px+5.5,py+1,2,0,7); bx.fill();
+}
+function drawWind(px,py){
+  bx.fillStyle="#7d9c62"; bx.fillRect(px,py,TS,TS);
+  bx.strokeStyle="#eef3f5"; bx.lineWidth=1.3;
+  bx.beginPath();
+  bx.moveTo(px+8,py+14); bx.lineTo(px+8,py+6);
+  bx.moveTo(px+8,py+6); bx.lineTo(px+3.5,py+3);
+  bx.moveTo(px+8,py+6); bx.lineTo(px+12.5,py+3);
+  bx.moveTo(px+8,py+6); bx.lineTo(px+8,py+1.5);
+  bx.stroke();
+  bx.fillStyle="#cfd8dc"; bx.fillRect(px+6.5,py+13,3,2);
+}
+function drawTower(px,py,big){
+  bx.fillStyle="#7d9c62"; bx.fillRect(px,py,TS,TS);
+  bx.fillStyle="rgba(15,25,20,.28)"; bx.fillRect(px+4,py+12,9,3);
+  bx.fillStyle=big?"#a8b4b8":"#9aa4a8"; bx.fillRect(px+7,py+7,2,7);
+  boxD(px,py,big?2:3,big?1:2,big?12:10,big?7:6,"#4f9fb0","#3a7d8b","#77c9d6");
+}
+function drawDump(px,py,c){
+  bx.fillStyle="#6f6650"; bx.fillRect(px,py,TS,TS);
+  bx.fillStyle="#5c5442";
+  for(let k=0;k<5;k++){
+    const ox=2+rnd(c.seed,k)*11,oy=3+rnd(c.seed,k+5)*10;
+    bx.beginPath(); bx.arc(px+ox,py+oy,1.8+rnd(c.seed,k+2)*1.4,0,7); bx.fill();
+  }
+  bx.fillStyle="#8a7a5c"; bx.fillRect(px+2,py+10,12,4);
+  bx.fillStyle="rgba(120,140,90,.5)"; bx.fillRect(px+3,py+4,3,2); bx.fillRect(px+9,py+6,3,2);
+}
+function drawIncin(px,py,clean){
+  bx.fillStyle=clean?"#4a5652":"#4f4a52"; bx.fillRect(px+1,py+1,TS-2,TS-2);
+  boxD(px,py,2,7,11,7,clean?"#6a8c84":"#6d6472",clean?"#4a6a63":"#4e4756",clean?"#a8d4c8":"#8a7f90");
+  bx.fillStyle=clean?"#8faa9f":"#8a8090"; bx.fillRect(px+10,py+1,3.5,8);
+  bx.fillStyle=clean?"rgba(200,240,225,.6)":"rgba(210,205,200,.5)";
+  bx.beginPath(); bx.arc(px+11.7,py+1,2.4,0,7); bx.fill();
+}
+function drawBusStop(px,py){
+  bx.fillStyle="#8f9c7a"; bx.fillRect(px,py,TS,TS);
+  bx.fillStyle="rgba(15,25,20,.25)"; bx.fillRect(px+4,py+11,9,3);
+  bx.fillStyle="#5c6570"; bx.fillRect(px+3,py+5,10,2);
+  bx.fillStyle="#8d959c"; bx.fillRect(px+3,py+7,1.5,6); bx.fillRect(px+11.5,py+7,1.5,6);
+  bx.fillStyle="#e2b93b"; bx.fillRect(px+6,py+2,4,3);
+}
+function drawCivic(px,py,face,side){
+  bx.fillStyle="#8f9c7a"; bx.fillRect(px,py,TS,TS);
+  boxD(px,py,2,4,12,10,face,side,"rgba(255,255,255,.5)");
+  bx.fillStyle="rgba(20,30,40,.45)";
+  bx.fillRect(px+4,py+9,2,2); bx.fillRect(px+7.5,py+9,2,2); bx.fillRect(px+11,py+9,2,2);
+}
+function drawLandmark(px,py){
+  bx.fillStyle="rgba(15,25,20,.35)"; bx.fillRect(px+5,py+4,10,12);
+  bx.fillStyle="#c99f2f"; bx.fillRect(px+4,py-12,8,28);
+  bx.fillStyle="#e8bc63"; bx.fillRect(px+4,py-12,5,28);
+  bx.fillStyle="#f7e3a8"; bx.fillRect(px+3,py-14,10,3);
+  bx.fillStyle="#fff6d6"; bx.fillRect(px+7,py-19,2,5);
+  bx.fillStyle="rgba(60,40,10,.5)";
+  for(let r=0;r<5;r++) bx.fillRect(px+5,py-8+r*4,6,1);
+}
+const PAL={
+  [RES]:{face:"#5fa864",side:"#3f7a45",top:"#8ed492",win:"rgba(255,246,200,.85)"},
+  [COM]:{face:"#3f8fc4",side:"#2c6d9a",top:"#7cc7ee",win:"rgba(220,246,255,.9)"},
+  [IND]:{face:"#b8873a",side:"#8d6526",top:"#e8bc63",win:"rgba(255,240,200,.7)"},
+  [CIND]:{face:"#5fae8c",side:"#3f7f63",top:"#8ed4b6",win:"rgba(220,255,240,.8)"},
+};
+function drawZone(c,px,py){
+  const p=PAL[c.t];
+  if(c.dev===0){
+    bx.fillStyle=c.t===RES?"rgba(111,191,115,.3)":c.t===COM?"rgba(74,163,217,.3)":c.t===CIND?"rgba(95,174,140,.3)":"rgba(217,164,65,.3)";
+    bx.fillRect(px+1,py+1,TS-2,TS-2);
+    bx.strokeStyle=p.side; bx.lineWidth=1; bx.setLineDash([3,2.5]);
+    bx.strokeRect(px+1.5,py+1.5,TS-3,TS-3); bx.setLineDash([]);
+    return;
+  }
+  const dead=!(c.road&&c.pow&&c.wat&&c.link);
+  const face=dead?"#6f6f66":p.face,side=dead?"#55554e":p.side,top=dead?"#8a8a80":p.top;
+  const s=c.seed;
+  if(c.t===RES){
+    if(c.dev===1){
+      const w=9+(s%3),x=(TS-w)/2;
+      boxD(px,py,x,7,w,6,face,side,null);
+      bx.fillStyle=top;
+      bx.beginPath(); bx.moveTo(px+x-1,py+7); bx.lineTo(px+x+w/2,py+3); bx.lineTo(px+x+w+1,py+7);
+      bx.closePath(); bx.fill();
+      if(!dead){ bx.fillStyle=p.win; bx.fillRect(px+x+2,py+9,2,2); bx.fillRect(px+x+w-4,py+9,2,2); }
+    } else {
+      const h=c.dev===2?9:13,w=11,x=2.5;
+      boxD(px,py,x,TS-2-h,w,h,face,side,top);
+      if(!dead){
+        bx.fillStyle=p.win;
+        for(let r=0;r<(c.dev===2?2:3);r++) for(let col=0;col<3;col++)
+          if((s+r*3+col)%4) bx.fillRect(px+x+1.5+col*3,py+TS-h+r*4-.5,1.6,2);
+      }
+    }
+  } else if(c.t===COM){
+    const h=[0,6,10,14][c.dev],w=12,x=2;
+    boxD(px,py,x,TS-2-h,w,h,face,side,top);
+    if(!dead){
+      bx.fillStyle=p.win;
+      for(let r=0;r<c.dev;r++) bx.fillRect(px+x+1.5,py+TS-h+r*4,w-3,1.8);
+      bx.fillStyle="#f2c14e"; bx.fillRect(px+x+2,py+TS-h-1.5,w-4,1.5);
+    }
+  } else {
+    const h=[0,6,8,11][c.dev],w=13,x=1.5;
+    boxD(px,py,x,TS-2-h,w,h,face,side,top);
+    bx.fillStyle=side; bx.fillRect(px+11,py+TS-h-5,2.5,6);
+    if(!dead){
+      bx.fillStyle="rgba(225,225,220,.45)"; bx.beginPath(); bx.arc(px+12.2,py+TS-h-6.5,1.8,0,7); bx.fill();
+      bx.fillStyle=p.win;
+      for(let col=0;col<3;col++) bx.fillRect(px+x+2+col*3.4,py+TS-h+2,2,1.8);
+    }
+  }
+}
+
+// ---------- vehicles ----------
+const CAR_COLORS=["#e8e6e0","#3f4a55","#c04b3a","#4d6f9a","#d8b24a","#7a7f85"];
+function rebuildFleet(){
+  fleetDirty=false;
+  const homes=[];
+  for(let i=0;i<W*H;i++){
+    const c=g[i];
+    if(c.t!==RES||c.dev===0) continue;
+    const r=roadBeside(i);
+    if(r<0) continue;
+    for(let k=0;k<(busCov[i]?1:2);k++) homes.push(r);
+  }
+  const target=Math.min(300,Math.floor(homes.length/2));
+  if(fleet.length>target) fleet.length=target;
+  while(fleet.length<target){
+    fleet.push({hr:homes[(Math.random()*homes.length)|0],wr:-1,state:0,path:null,pos:0,
+      out:0.29+Math.random()*0.13,back:0.63+Math.random()*0.13,ext:Math.random()<0.28,
+      sp:0.05+Math.random()*0.03,col:CAR_COLORS[(Math.random()*CAR_COLORS.length)|0]});
+  }
+  for(const c of fleet) if(!isTier(g[c.hr].t)&&homes.length) c.hr=homes[(Math.random()*homes.length)|0];
+}
+function rebuildBuses(){
+  const stops=[];
+  for(let i=0;i<W*H;i++) if(g[i].t===BUS){ const r=roadBeside(i); if(r>=0) stops.push(r); }
+  buses=[];
+  for(let k=0;k+1<stops.length&&buses.length<10;k++){
+    const p=roadPath(stops[k],stops[k+1]);
+    if(p.length>1) buses.push({path:p,pos:0,dir:1,sp:0.035+Math.random()*0.01});
+  }
+}
+const inWindow=(t,s)=>t>=s&&t<s+0.09;
+function updateVehicles(dt){
+  const mult=Math.max(1,speed);
+  if(showCars) for(const car of fleet){
+    if(car.state===0){
+      if(inWindow(dayT,car.out)){
+        const p=walkDown(car.hr,car.ext?distHwy:distJob,60);
+        if(p.length>1){ car.path=p; car.pos=0; car.state=1; }
+      }
+    } else if(car.state===2){
+      if(inWindow(dayT,car.back)){
+        const p=walkDown(car.wr,distHome,60);
+        if(p.length>1){ car.path=p; car.pos=0; car.state=3; }
+      } else if(dayT<0.15) car.state=0;
+    } else {
+      const i=car.path[Math.min(car.path.length-1,Math.floor(car.pos))];
+      const slow=1/(1+Math.max(0,congAt(i)-0.5)*2.4);
+      car.pos+=car.sp*slow*dt*60*mult;
+      if(car.pos>=car.path.length-1){
+        if(car.state===1){ car.wr=car.path[car.path.length-1]; car.state=2; }
+        else car.state=0;
+        car.path=null;
+      }
+    }
+  }
+  if(showCars&&dayT>0.22&&dayT<0.85) for(const b of buses){
+    b.pos+=b.dir*b.sp*dt*60*mult;
+    if(b.pos>=b.path.length-1){ b.pos=b.path.length-1; b.dir=-1; }
+    if(b.pos<=0){ b.pos=0; b.dir=1; }
+  }
+}
+function vXY(path,pos){
+  const f=Math.floor(pos),frac=pos-f;
+  const a=path[clamp(f,0,path.length-1)],b=path[clamp(f+1,0,path.length-1)];
+  const ax=(a%W)*TS+8,ay=((a/W)|0)*TS+8,bxp=(b%W)*TS+8,byp=((b/W)|0)*TS+8;
+  return {x:ax+(bxp-ax)*frac,y:ay+(byp-ay)*frac,h:Math.abs(bxp-ax)>Math.abs(byp-ay)};
+}
+function drawVehicles(){
+  if(!showCars) return;
+  for(const car of fleet){
+    if(car.state!==1&&car.state!==3) continue;
+    const v=vXY(car.path,car.pos);
+    cx.fillStyle="rgba(0,0,0,.28)";
+    cx.fillRect(v.x-(v.h?2.6:1.6)+.6,v.y-(v.h?1.6:2.6)+.6,v.h?5.2:3.2,v.h?3.2:5.2);
+    cx.fillStyle=car.col;
+    cx.fillRect(v.x-(v.h?2.6:1.6),v.y-(v.h?1.6:2.6),v.h?5.2:3.2,v.h?3.2:5.2);
+  }
+  if(dayT>0.22&&dayT<0.85) for(const b of buses){
+    const v=vXY(b.path,b.pos);
+    cx.fillStyle="rgba(0,0,0,.3)";
+    cx.fillRect(v.x-(v.h?4.5:2.2)+.7,v.y-(v.h?2.2:4.5)+.7,v.h?9:4.4,v.h?4.4:9);
+    cx.fillStyle="#e2b93b";
+    cx.fillRect(v.x-(v.h?4.5:2.2),v.y-(v.h?2.2:4.5),v.h?9:4.4,v.h?4.4:9);
+  }
+}
+function carsOnRoad(){ let n=0; for(const c of fleet) if(c.state===1||c.state===3) n++; return n; }
+
+
+function darkness(){
+  if(!dayNight) return 0;
+  const t=dayT;
+  if(t<0.18) return 1;
+  if(t<0.28) return (0.28-t)/0.10;
+  if(t<0.76) return 0;
+  if(t<0.9) return (t-0.76)/0.14;
+  return 1;
+}
+function clampCam(){
+  cam.s=clamp(cam.s,1,4);
+  const vw=W*TS/cam.s,vh=H*TS/cam.s;
+  cam.x=clamp(cam.x,0,W*TS-vw);
+  cam.y=clamp(cam.y,0,H*TS-vh);
+}
+function render(){
+  clampCam();
+  cx.setTransform(DPR,0,0,DPR,0,0);
+  cx.clearRect(0,0,W*TS,H*TS);
+  cx.setTransform(DPR*cam.s,0,0,DPR*cam.s,-cam.x*cam.s*DPR,-cam.y*cam.s*DPR);
+  cx.drawImage(base,0,0,W*TS,H*TS);
+  const dk=darkness();
+  if(dk>0.02){
+    cx.fillStyle="rgba(12,22,48,"+(dk*0.5)+")";
+    cx.fillRect(0,0,W*TS,H*TS);
+    cx.fillStyle="rgba(255,214,140,"+(0.55*dk)+")";
+    for(let i=0;i<W*H;i++){
+      const c=g[i];
+      if(c.dev===0||!isZone(c.t)||!c.pow) continue;
+      const x=(i%W)*TS,y=((i/W)|0)*TS;
+      cx.fillRect(x+4+(c.seed%5),y+5+(c.seed%4),2,2);
+      if(c.dev===3) cx.fillRect(x+9,y+3+(c.seed%3),2,2);
+    }
+  }
+  if(view!=="none") overlay();
+  drawVehicles();
+  drawEvents();
+  drawRings();
+  drawToolPreview();
+  if(tutOn) drawTutTargets();
+  if(hover){
+    const bad=tool.id>=0&&(!ownedAt(hover.x,hover.y)||g[idx(hover.x,hover.y)].t===HIGHWAY);
+    cx.strokeStyle=bad?"#e06c5c":"#f7d67a"; cx.lineWidth=2;
+    cx.strokeRect(hover.x*TS+1,hover.y*TS+1,TS-2,TS-2);
+  }
+  drawMinimap();
+}
+const MM={x:10,y:10,w:170,h:170*H/W};
+function drawMinimap(){
+  if(cam.s<=1.02) return;
+  cx.setTransform(DPR,0,0,DPR,0,0);          // back to screen space
+  cx.fillStyle="rgba(10,18,24,.75)";
+  cx.fillRect(MM.x-4,MM.y-4,MM.w+8,MM.h+8);
+  cx.globalAlpha=0.92;
+  cx.drawImage(base,MM.x,MM.y,MM.w,MM.h);
+  cx.globalAlpha=1;
+  cx.strokeStyle="rgba(140,166,180,.5)"; cx.lineWidth=1;
+  cx.strokeRect(MM.x-4,MM.y-4,MM.w+8,MM.h+8);
+  const vw=(W*TS/cam.s)/(W*TS)*MM.w, vh=(H*TS/cam.s)/(H*TS)*MM.h;
+  const vx=MM.x+(cam.x/(W*TS))*MM.w, vy=MM.y+(cam.y/(H*TS))*MM.h;
+  cx.strokeStyle="#f2c14e"; cx.lineWidth=2;
+  cx.strokeRect(vx,vy,vw,vh);
+  cx.fillStyle="rgba(242,193,73,.12)"; cx.fillRect(vx,vy,vw,vh);
+}
+function screenPos(e){
+  const r=cv.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*(W*TS),y:(e.clientY-r.top)/r.height*(H*TS)};
+}
+function inMinimap(e){
+  if(cam.s<=1.02) return false;
+  const p=screenPos(e);
+  return p.x>=MM.x&&p.x<=MM.x+MM.w&&p.y>=MM.y&&p.y<=MM.y+MM.h;
+}
+function minimapJump(e){
+  const p=screenPos(e);
+  cam.x=((p.x-MM.x)/MM.w)*(W*TS)-(W*TS/cam.s)/2;
+  cam.y=((p.y-MM.y)/MM.h)*(H*TS)-(H*TS/cam.s)/2;
+  clampCam();
+}
+function drawEvents(){
+  for(const f of fires){
+    const x=(f.i%W)*TS,y=((f.i/W)|0)*TS,flick=0.55+0.45*Math.sin(phase/3+f.i);
+    cx.fillStyle="rgba(255,110,30,"+(0.4*flick)+")";
+    cx.beginPath(); cx.arc(x+8,y+8,10,0,7); cx.fill();
+    cx.fillStyle="rgba(255,90,30,.9)";
+    cx.beginPath(); cx.moveTo(x+8,y+1); cx.lineTo(x+13,y+13); cx.lineTo(x+3,y+13); cx.closePath(); cx.fill();
+    cx.fillStyle="rgba(255,225,120,.95)";
+    cx.beginPath(); cx.moveTo(x+8,y+5+flick); cx.lineTo(x+11,y+13); cx.lineTo(x+5,y+13); cx.closePath(); cx.fill();
+    if(f.saved){ cx.strokeStyle="rgba(120,220,255,.8)"; cx.lineWidth=1.5;
+      cx.beginPath(); cx.arc(x+8,y+8,7,0,7); cx.stroke(); }
+  }
+  for(const c of crimes){
+    const x=(c.i%W)*TS,y=((c.i/W)|0)*TS,a=clamp(c.t/3,0,1),pulse=0.5+0.5*Math.sin(phase/4);
+    cx.strokeStyle="rgba(90,120,224,"+(a*(0.5+pulse*0.5))+")"; cx.lineWidth=2;
+    cx.beginPath(); cx.arc(x+8,y+8,6+pulse*4,0,7); cx.stroke();
+    cx.fillStyle="rgba(224,90,90,"+a+")";
+    cx.fillRect(x+7,y+4,2,6); cx.fillRect(x+7,y+11,2,2);
+  }
+}
+function ringsFor(type){
+  const r=radiusOf(type)*TS;
+  if(!r) return;
+  cx.strokeStyle="rgba(242,193,73,.35)"; cx.lineWidth=1.5;
+  for(let i=0;i<W*H;i++){
+    if(g[i].t!==type) continue;
+    cx.beginPath(); cx.arc((i%W)*TS+8,((i/W)|0)*TS+8,r,0,7); cx.stroke();
+  }
+}
+const SMOG_HOVER={[POWER]:5,[DUMP]:4,[IND]:6};
+function drawRings(){
+  cx.save();
+  // exactly one set of rings: whatever the services view is filtered to, else the held tool
+  let ringType=null;
+  if(view==="svc"){
+    if(svcByKey(sub)) ringType=svcByKey(sub).t;
+    else if(sub==="transit") ringType=BUS;
+  } else if(SERVICES.some(s=>s.t===tool.id)||tool.id===BUS) ringType=tool.id;
+  if(ringType!=null) ringsFor(ringType);
+  if(hover&&(SERVICES.some(s=>s.t===tool.id)||tool.id===BUS)){
+    const r=radiusOf(tool.id)*TS,cxp=hover.x*TS+8,cyp=hover.y*TS+8;
+    cx.fillStyle="rgba(242,193,73,.13)";
+    cx.beginPath(); cx.arc(cxp,cyp,r,0,7); cx.fill();
+    cx.strokeStyle="rgba(255,225,150,.9)"; cx.lineWidth=2;
+    cx.setLineDash([5,4]); cx.lineDashOffset=-phase/4;
+    cx.beginPath(); cx.arc(cxp,cyp,r,0,7); cx.stroke();
+    cx.setLineDash([]);
+  }
+  if(hover&&SMOG_HOVER[tool.id]){
+    const r=SMOG_HOVER[tool.id]*TS,cxp=hover.x*TS+8,cyp=hover.y*TS+8;
+    cx.fillStyle="rgba(140,105,70,.16)";
+    cx.beginPath(); cx.arc(cxp,cyp,r,0,7); cx.fill();
+    cx.strokeStyle="rgba(180,140,95,.8)"; cx.lineWidth=2;
+    cx.setLineDash([5,4]); cx.lineDashOffset=-phase/4;
+    cx.beginPath(); cx.arc(cxp,cyp,r,0,7); cx.stroke();
+    cx.setLineDash([]);
+  }
+  cx.restore();
+}
+function drawToolPreview(){
+  if(tool.id===UPGRADE||tool.id===BULLDOZE){
+    if(boxStart&&boxEnd){
+      const x0=Math.min(boxStart.x,boxEnd.x),x1=Math.max(boxStart.x,boxEnd.x);
+      const y0=Math.min(boxStart.y,boxEnd.y),y1=Math.max(boxStart.y,boxEnd.y);
+      const bull=tool.id===BULLDOZE;
+      cx.fillStyle=bull?"rgba(224,80,60,.18)":"rgba(242,193,73,.18)";
+      cx.fillRect(x0*TS,y0*TS,(x1-x0+1)*TS,(y1-y0+1)*TS);
+      cx.strokeStyle=bull?"rgba(240,140,120,.9)":"rgba(255,225,150,.9)"; cx.lineWidth=2;
+      cx.strokeRect(x0*TS+1,y0*TS+1,(x1-x0+1)*TS-2,(y1-y0+1)*TS-2);
+    }
+  }
+  if(tool.id===UPGRADE){
+    if(upgAnchor>=0){
+      cx.fillStyle="rgba(242,193,73,.5)";
+      cx.fillRect((upgAnchor%W)*TS,((upgAnchor/W)|0)*TS,TS,TS);
+    }
+    cx.fillStyle=upgLocked?"rgba(242,193,73,.55)":"rgba(242,193,73,.35)";
+    for(const i of upgPath) cx.fillRect((i%W)*TS,((i/W)|0)*TS,TS,TS);
+  }
+  if(tool.id===BULLDOZE&&bullPath.length){
+    cx.fillStyle="rgba(224,80,60,.5)";
+    for(const i of bullPath) cx.fillRect((i%W)*TS,((i/W)|0)*TS,TS,TS);
+  }
+  const hp=hover?parcelOf(hover.x,hover.y):-1;
+  if(hp>=0&&parcelBuyable(hp)){
+    const px=(hp%PW)*PS*TS,py=((hp/PW)|0)*PS*TS,S=PS*TS;
+    cx.fillStyle="rgba(242,193,73,.22)";
+    cx.fillRect(px,py,S,S);
+    cx.strokeStyle="rgba(255,225,150,.95)"; cx.lineWidth=3;
+    cx.setLineDash([7,4]); cx.lineDashOffset=-phase/4;
+    cx.strokeRect(px+3,py+3,S-6,S-6);
+    cx.setLineDash([]);
+    const label="Buy this parcel · "+money$(parcelCost());
+    cx.font="600 15px 'Barlow Semi Condensed',sans-serif";
+    const tw=cx.measureText(label).width;
+    cx.fillStyle="rgba(16,28,36,.92)";
+    cx.fillRect(px+S/2-tw/2-9,py+S/2-14,tw+18,28);
+    cx.strokeStyle="rgba(242,193,73,.7)"; cx.lineWidth=1;
+    cx.strokeRect(px+S/2-tw/2-9,py+S/2-14,tw+18,28);
+    cx.fillStyle="#f2c14e"; cx.textAlign="center"; cx.textBaseline="middle";
+    cx.fillText(label,px+S/2,py+S/2);
+    cx.textAlign="start"; cx.textBaseline="alphabetic";
+  }
+}
+function heat(v){
+  const r=Math.round(clamp(v*2,0,1)*220),gr=Math.round((1-clamp((v-0.5)*2,0,1))*200);
+  return "rgba("+r+","+gr+",70,";
+}
+function overlay(){
+  for(let i=0;i<W*H;i++){
+    const c=g[i],x=(i%W)*TS,y=((i/W)|0)*TS;
+    let col=null;
+    if(view==="svc"){
+      if(sub==="power"){
+        if(c.t===POWER||c.t===WIND) col="rgba(242,193,73,.85)";
+        else if(isZone(c.t)) col=c.pow?"rgba(240,180,41,.42)":"rgba(224,80,60,.55)";
+      } else if(sub==="water"){
+        if(c.t===PUMP) col="rgba(79,179,201,.9)";
+        else if(isZone(c.t)) col=c.wat?"rgba(79,179,201,.42)":"rgba(224,80,60,.55)";
+      } else if(sub==="waste"){
+        if(c.t===DUMP||c.t===INCIN) col="rgba(169,138,95,.9)";
+        else if(isZone(c.t)&&c.dev>0) col=garShort?"rgba(224,80,60,.4)":"rgba(169,138,95,.35)";
+      } else if(sub==="transit"){
+        if(c.t===BUS) col="rgba(226,185,59,.9)";
+        else if(busCov[i]&&c.t===RES) col="rgba(226,185,59,.4)";
+        else if(c.t===RES&&c.dev>0) col="rgba(224,80,60,.3)";
+      } else if(sub==="all"){
+        const need=NEEDS[c.t]?NEEDS[c.t].length:0;
+        if(need&&c.dev>0){
+          const n=relevantCount(i,c.t);
+          col=n>=need?"rgba(111,191,115,.45)":n>0?"rgba(226,185,59,.35)":"rgba(224,80,60,.4)";
+        }
+      } else {
+        if(c.t===svcByKey(sub).t) col="rgba(242,193,73,.85)";
+        else if(hasCover(i,sub)) col="rgba(111,191,115,.3)";
+        else if(c.dev>0&&(NEEDS[c.t]||[]).includes(sub)) col="rgba(224,80,60,.45)";
+      }
+    } else if(view==="value"){
+      if(c.t===WATER) continue;
+      col=heat(1-land[i]/100)+".4)";   // green = high value, red = low value
+    } else if(view==="traffic"){
+      if(!isTier(c.t)) continue;
+      col=heat(Math.min(1,congAt(i)/1.4))+".8)";
+    } else if(view==="crime"){
+      if(crime[i]<4) continue;
+      col="rgba("+Math.round(120+crime[i])+",70,110,"+clamp(crime[i]/130,0,.6)+")";
+    } else if(view==="smog"){
+      if(smog[i]<3) continue;
+      col="rgba(120,90,60,"+clamp(smog[i]/120,0,.65)+")";
+    }
+    if(col){ cx.fillStyle=col; cx.fillRect(x,y,TS,TS); }
+  }
+}
+function drawTutTargets(){
+  const s=STEPS[tutStep],tg=s.tiles?s.tiles():[];
+  if(!tg.length) return;
+  const a=.35+.35*Math.sin(phase/16);
+  cx.save(); cx.setLineDash([4,3]); cx.lineDashOffset=-phase/3; cx.lineWidth=2;
+  for(const t of tg){
+    const done=s.satisfied?s.satisfied(t):false;
+    cx.fillStyle=done?"rgba(111,191,115,.3)":"rgba(242,193,73,"+(a*.55)+")";
+    cx.fillRect(t.x*TS,t.y*TS,TS,TS);
+    cx.strokeStyle=done?"rgba(140,220,150,.8)":"rgba(255,225,150,"+(.5+a*.5)+")";
+    cx.strokeRect(t.x*TS+1,t.y*TS+1,TS-2,TS-2);
+  }
+  cx.restore();
+}
+function frame(ts){
+  const dt=Math.min(.05,(ts-lastFrame)/1000||0);
+  lastFrame=ts;
+  if(speed>0){
+    acc+=dt*speed;
+    while(acc>=0.6){ acc-=0.6; tick(); }
+    dayT=((week+acc/0.6)/WEEKS_PER_DAY)%1;
+    updateFires(dt*speed);
+  }
+  phase++;
+  updateVehicles(dt);
+    render();
+  updateClock();
+  requestAnimationFrame(frame);
+}
+function updateClock(){
+  const mins=Math.floor(dayT*24*60),hh=Math.floor(mins/60),mm=Math.floor(mins%60/10)*10;
+  const n=carsOnRoad();
+  $("sDate").textContent=dateStr(week);
+  $("sTime").textContent=String(hh).padStart(2,"0")+":"+String(mm).padStart(2,"0")+
+    (n?" · "+n+" driving":"")+(cam.s>1.05?" · "+cam.s.toFixed(1)+"×":"");
+}
+
+// ---------- history graph ----------
+const SERIES=[
+  {k:"pop",name:"Population",col:"#6fbf73"},
+  {k:"money",name:"Treasury",col:"#f2c14e"},
+  {k:"happy",name:"Happiness",col:"#4aa3d9"},
+  {k:"land",name:"Land value",col:"#c98fd0"},
+];
+function drawGraph(){
+  const gc=$("graph"),c=gc.getContext("2d");
+  const w=gc.width,h=gc.height;
+  c.clearRect(0,0,w,h);
+  c.fillStyle="#0e1920"; c.fillRect(0,0,w,h);
+  c.strokeStyle="rgba(140,166,180,.18)"; c.lineWidth=1;
+  for(let k=0;k<=4;k++){ const y=10+(h-30)*k/4; c.beginPath(); c.moveTo(30,y); c.lineTo(w-8,y); c.stroke(); }
+  if(history.length<2){
+    c.fillStyle="#8ea6b4"; c.font="16px 'Barlow',sans-serif";
+    c.fillText("The record starts once your first month closes.",40,h/2);
+    return;
+  }
+  const n=history.length;
+  for(const s of SERIES){
+    if(!gShow[s.k]) continue;
+    let max=0;
+    for(const p of history) max=Math.max(max,Math.abs(p[s.k]));
+    if(max<=0) max=1;
+    c.strokeStyle=s.col; c.lineWidth=2.5; c.beginPath();
+    history.forEach((p,i)=>{
+      const x=30+(w-38)*(i/(n-1));
+      const y=10+(h-30)*(1-clamp(p[s.k]/max,0,1));
+      i?c.lineTo(x,y):c.moveTo(x,y);
+    });
+    c.stroke();
+    c.fillStyle=s.col; c.font="500 15px 'Barlow Semi Condensed',sans-serif";
+    const last=history[n-1][s.k];
+    c.fillText(s.k==="money"?money$(last):Math.round(last).toLocaleString(),
+      w-8-c.measureText(s.k==="money"?money$(last):Math.round(last).toLocaleString()).width,
+      10+(h-30)*(1-clamp(last/max,0,1))-6);
+  }
+  c.fillStyle="#8ea6b4"; c.font="14px 'Barlow Semi Condensed',sans-serif";
+  const y0=2026+Math.floor(history[0].w/48),y1=2026+Math.floor(history[n-1].w/48);
+  c.fillText(y0,32,h-8); c.textAlign="end"; c.fillText(y1,w-10,h-8); c.textAlign="start";
+}
+function buildLegend(){
+  $("glegend").innerHTML="";
+  for(const s of SERIES){
+    const b=document.createElement("button");
+    b.textContent=s.name;
+    b.setAttribute("aria-pressed",gShow[s.k]);
+    b.style.borderColor=s.col;
+    b.style.background=gShow[s.k]?s.col:"none";
+    b.style.color=gShow[s.k]?"#101c24":s.col;
+    b.onclick=()=>{ gShow[s.k]=!gShow[s.k]; buildLegend(); drawGraph(); };
+    $("glegend").appendChild(b);
+  }
+}
+
+// ---------- HUD ----------
+function money$(v){ return (v<0?"-$":"$")+Math.abs(Math.round(v)).toLocaleString(); }
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function dateStr(w){ const mo=Math.floor(w/4); return MONTHS[mo%12]+" "+(2000+Math.floor(mo/12)); }
+function row(k,v,cls){ return '<div class="'+(cls||"")+'">'+k+'<b>'+v+'</b></div>'; }
+function hud(){
+  $("sMoney").textContent=infMoney?"∞":money$(money);
+  $("sMoney").classList.toggle("warn",!infMoney&&money<0);
+  $("sFlow").innerHTML="<b>+"+money$(inc.total).slice(1)+"</b> tax &nbsp;<i>−"+money$(upk.total).slice(1)+"</i> costs";
+  $("sPop").textContent=pop.toLocaleString();
+  $("sJobs").textContent=(jobsC+jobsI).toLocaleString()+" jobs · "+EXT_JOBS+" out of town";
+  $("sHappy").textContent=pop?happy+"%":"—";
+  $("sHappy").classList.toggle("warn",pop>0&&happy<45);
+  $("sHint").textContent=!pop?"no residents":happy>=70?"content":happy>=50?"grumbling":"leaving";
+  $("sLand").textContent=pop?Math.round(avgLand):"—";
+  $("sLand").classList.toggle("warn",pop>0&&avgLand<35);
+  $("sTraf").textContent=!pop?"no traffic":maxCong>1.2?"gridlock":maxCong>0.8?"busy roads":"traffic flowing";
+  $("sTraf").classList.toggle("warn",maxCong>1.2);
+  const gauge=(numId,barId,use,cap,short,unit,col)=>{
+    $(numId).textContent=use+" / "+cap+" "+unit;
+    $(numId).classList.toggle("warn",short>0);
+    $(barId).style.width=(cap?Math.min(100,use/cap*100):(use?100:0))+"%";
+    $(barId).style.background=short>0?"var(--bad)":col;
+  };
+  gauge("powNum","powBar",powUse,powCap,powShort,"MW","var(--pow)");
+  gauge("watNum","watBar",watUse,watCap,watShort,"kL","var(--wat)");
+  gauge("garNum","garBar",garUse,garCap,garShort,"t","var(--gar)");
+  $("dRes").style.width=Math.max(0,dRes)*100+"%";
+  $("dCom").style.width=Math.max(0,dCom)*100+"%";
+  $("dInd").style.width=Math.max(0,dInd)*100+"%";
+  let rank=RANKS[0]; for(const r of RANKS) if(pop>=r.pop) rank=r;
+  $("rank").textContent=rank.name;
+
+  $("ledger").innerHTML=
+    row("Residential tax",money$(inc.res))+row("Commercial tax",money$(inc.com))+
+    row("Industrial tax",money$(inc.ind))+row("Income","+"+money$(inc.total).slice(1),"tot pos")+
+    row("Roads","−"+money$(upk.road).slice(1),"sub")+
+    row("Utilities and waste","−"+money$(upk.util).slice(1),"sub")+
+    row("Services","−"+money$(upk.svc).slice(1),"sub")+
+    row("Parks","−"+money$(upk.park).slice(1),"sub")+
+    (loans.length?row("Bond repayments","−"+money$(upk.debt).slice(1),"sub"):"")+
+    row("Costs","−"+money$(upk.total).slice(1),"tot neg")+
+    row("Net per month",(netFlow>=0?"+":"−")+money$(netFlow).replace("-","").slice(1),
+        "tot "+(netFlow>=0?"pos":"neg"));
+  const debt=loans.reduce((a,l)=>a+l.left,0);
+  document.querySelectorAll("[data-bond]").forEach(b=>{
+    const amt=+b.dataset.bond;
+    const ok=amt<=borrowLimit()&&loans.length<2;
+    b.disabled=!ok;
+    b.style.opacity=ok?1:0.35;
+    b.textContent=money$(amt)+" · "+money$(bondPayment(amt))+"/mo";
+  });
+  $("bondNote").innerHTML=
+    "Ten-year term at "+Math.round(bondRate()*100)+"% of face value. Borrowing limit "+
+    money$(borrowLimit())+" — about eighteen months of revenue."+
+    (loans.length?"<br>"+loans.length+" outstanding · "+money$(debt)+" left to repay · "+
+      money$(upk.debt)+" a month":"");
+
+  const workforce=Math.round(pop*0.52),jobs=jobsC+jobsI+EXT_JOBS;
+  const unemp=workforce>0?clamp(Math.round((1-Math.min(1,jobs/workforce))*100),0,100):0;
+  $("citystats").innerHTML=
+    row("Growth",growthBlock())+
+    row("Land owned",ownedCount()+" / "+owned.length+" parcels")+
+    row("Workforce",workforce.toLocaleString())+
+    row("Jobs incl. highway",jobs.toLocaleString())+
+    row("Unemployment",unemp+"%")+
+    row("Cars driving",carsOnRoad().toLocaleString())+
+    row("Peak congestion",Math.round(maxCong*100)+"%")+
+    row("Average land value",Math.round(avgLand))+
+    row("Average crime",Math.round(avgCrime))+
+    row("Average smog",Math.round(avgSmog()))+
+    row("Fire cover",Math.round(cover.fire*100)+"%")+
+    row("Police cover",Math.round(cover.police*100)+"%")+
+    row("Health cover",Math.round(cover.clinic*100)+"%")+
+    row("School cover",Math.round(cover.school*100)+"%");
+
+  $("achv").innerHTML=ACHS.map(a=>{
+    const got=achieved.has(a.id);
+    let prog="";
+    if(!got&&a.hold&&achTimer[a.id]) prog=" ("+Math.floor(achTimer[a.id]/48)+"y of "+Math.floor(a.hold/48)+"y)";
+    return '<div class="ach'+(got?" got":"")+'"><span class="mk">'+(got?"✓":"")+'</span><div><b>'+
+      a.name+prog+'</b><span>'+a.desc+'</span></div></div>';
+  }).join("");
+
+  const gl=[
+    {t:"Grow to 6,000 residents",met:pop>=6000,txt:pop.toLocaleString()+" / 6,000"},
+    {t:"Hold happiness at 60% or better",met:pop>0&&happy>=60,txt:pop?happy+"%":"—"},
+    {t:"Stay in the black",met:infMoney||money>0,txt:infMoney?"∞":money$(money)},
+    {t:"Raise the Willow Tower",met:countType(LANDMARK)>0,
+     txt:countType(LANDMARK)?"built":unlocked.has(LANDMARK)?"available":"unlocks at 6,000"},
+  ];
+  $("goals").innerHTML=gl.map(x=>'<div class="goal'+(x.met?" met":"")+'"><span class="dot"></span>'+
+    x.t+'<b>'+x.txt+'</b></div>').join("");
+  $("milestones").innerHTML=RANKS.slice(1).map(r=>'<span class="chip'+(pop>=r.pop?" on":"")+'">'+
+    r.name+' · '+r.pop.toLocaleString()+'</span>').join("");
+  $("devNote").textContent="streets "+countType(STREET)+" · avenues "+countType(AVENUE)+
+    " · boulevards "+countType(BOULEVARD)+" · dumps "+countType(DUMP)+" · fleet "+fleet.length+
+    " · undo "+undoStack.length+" · next parcel "+money$(parcelCost());
+  $("undoBtn").disabled=!undoStack.length;
+  drawGraph();
+  if(msgTimer>0&&--msgTimer===0) msgEl.classList.remove("alert");
+}
+function inspect(){
+  const el=$("inspect");
+  if(!hover){ el.classList.remove("show"); return; }
+  const i=idx(hover.x,hover.y),c=g[i];
+  if(!ownedAt(hover.x,hover.y)){
+    el.innerHTML="<b>Outside city limits</b><br><em>this parcel costs</em> "+money$(parcelCost());
+    el.classList.add("show"); return;
+  }
+  const names={0:"Empty land",1:"Water",2:"Woods",3:"Street",4:"Residential",5:"Commercial",
+    6:"Industrial",7:"Coal plant",8:"Water tower",9:"Park",10:"Fire station",11:"Police post",
+    12:"Clinic",13:"School",14:"Wind farm",15:"Willow Tower",16:"Avenue",17:"Bus stop",
+    18:"Boulevard",19:"Landfill",20:"Sanitation center",21:"Highway",22:"Clean zone",23:"Aquifer",24:"Mountain"};
+  let s="<b>"+(c.bridge?"Bridge":names[c.t])+"</b>";
+  if(c.burning) s+=" <em style='color:#e06c5c'>ON FIRE</em>";
+  if(isZone(c.t)){
+    const need=NEEDS[c.t]?NEEDS[c.t].length:4;
+    s+=" <em>stage "+c.dev+"</em><br><em>value</em> "+Math.round(land[i])+
+       " · <em>smog</em> "+Math.round(smog[i])+" · <em>crime</em> "+Math.round(crime[i])+
+       "<br><em>services</em> "+relevantCount(i,c.t)+"/"+need+
+       ((c.t===IND||c.t===CIND)?" (fire only)":c.t===COM?" (fire, police)":"")+
+       (busCov[i]?" · <em>bus route</em>":"");
+    const miss=[];
+    if(!c.road) miss.push("road"); if(!c.pow) miss.push("power"); if(!c.wat) miss.push("water");
+    if(c.road&&!c.link) miss.push("route to the highway");
+    if(miss.length) s+="<br><em>missing</em> "+miss.join(", ");
+  } else if(isRoadT(c.t)){
+    s+="<br><em>traffic</em> "+Math.round(load[i])+" / "+ROAD_CAP[c.t]+" ("+Math.round(congAt(i)*100)+"%)";
+    if(NEXT_TIER[c.t]) s+="<br><em>upgrades to</em> "+TIER_NAME[NEXT_TIER[c.t]];
+  } else if(SERVICES.some(x=>x.t===c.t)||c.t===BUS){
+    s+="<br><em>reaches</em> "+radiusOf(c.t)+" tiles";
+  } else s+="<br><em>value</em> "+Math.round(land[i]);
+  el.innerHTML=s; el.classList.add("show");
+}
+
+// ---------- tools ----------
+const toolbar=$("tools");
+function buildTools(){
+  toolbar.innerHTML="";
+  TOOLS.forEach(t=>{
+    const built=t.id===LANDMARK&&countType(LANDMARK)>0;
+    const lock=(t.unlock!==0&&!unlocked.has(t.id))||built;
+    const b=document.createElement("button");
+    b.className="tool"+(lock?" locked":"");
+    b.dataset.tid=t.id;
+    b.setAttribute("aria-pressed",(!lock&&tool&&tool.id===t.id)?"true":"false");
+    let ct,tip="";
+    if(built) ct="built";
+    else if(lock) ct=t.unlock<0?"after charter":"at "+t.unlock.toLocaleString()+" pop";
+    else if(t.id===UPGRADE){ ct="$35–120 / tile"; tip="Street to avenue $35/tile, avenue to boulevard $120/tile."; }
+    else if(t.id===BULLDOZE) ct="free · refunds 40%";
+    else {
+      ct="$"+toolCost(t.id).toLocaleString()+(t.per?" / tile":"");
+      if(t.id===STREET) tip="Bridges over water for $70 a tile.";
+      else if(t.id===RESV) tip="950 kL on one tile — more than double a water tower's capacity, for less space.";
+      else if(t.id===INCIN) tip="750 t of capacity on one tile, no smog, small land-value hit.";
+    }
+    b.innerHTML='<span class="swatch" style="background:'+t.color+'"></span><span class="lbl">'+
+      t.name+'<span class="cost">'+ct+'</span></span><kbd>'+t.key+'</kbd>';
+    if(tip) b.title=tip;
+    if(!lock) b.onclick=()=>selectTool(t);
+    toolbar.appendChild(b);
+  });
+  if(tutOn) glowTool(STEPS[tutStep].tool);
+}
+function selectTool(t){
+  if(tool&&tool.id!==t.id) clearOverlayTools();
+  tool=t;
+  [...toolbar.children].forEach(c=>c.setAttribute("aria-pressed",+c.dataset.tid===t.id?"true":"false"));
+  if(t.id===UPGRADE) say("Click two ends of a run, or right-drag a box, then confirm.");
+}
+function glowTool(id){
+  [...toolbar.children].forEach(c=>c.classList.toggle("glow",tutOn&&id!=null&&+c.dataset.tid===id));
+  $("speed").classList.toggle("glow",tutOn&&id===-50);
+}
+
+// ---------- tutorial ----------
+function makePlan(){
+  const ay=RAMP_Y,x0=5;
+  const road=[],stem=[];
+  for(let k=0;k<10;k++) road.push({x:x0+k,y:ay});
+  for(let k=1;k<=7;k++) stem.push({x:x0+4,y:ay+k});
+  return {ay,x0,road,stem,
+    coal:[{x:x0+5,y:ay+7}],pump:[{x:x0+5,y:ay+1}],
+    res:[0,1,2,3,6,7,8,9].map(k=>({x:x0+k,y:ay-1})),
+    com:[{x:x0+3,y:ay+2},{x:x0+5,y:ay+2},{x:x0+3,y:ay+3},{x:x0+5,y:ay+3}],
+    ind:[{x:x0+3,y:ay+5},{x:x0+5,y:ay+5},{x:x0+3,y:ay+6},{x:x0+5,y:ay+6}],
+    dump:[{x:x0+3,y:ay+7}],
+    park:[{x:x0+1,y:ay-2},{x:x0+8,y:ay-2}],
+    fire:[{x:x0+3,y:ay+1}]};
+}
+function clearPlanWater(pl){
+  let n=0;
+  for(const k of ["road","stem","coal","pump","res","com","ind","dump","park","fire"])
+    for(const t of pl[k]||[]){
+      if(!inb(t.x,t.y)) continue;
+      const c=g[idx(t.x,t.y)];
+      if(c.t===WATER){ c.t=EMPTY; c.bridge=false; n++; }
+      else if(c.t===MOUNTAIN){ c.t=EMPTY; n++; }
+    }
+  return n;
+}
+const P=()=>tutPlan||(tutPlan=makePlan());
+const at=t=>g[idx(t.x,t.y)];
+const cm=(tiles,type)=>tiles.filter(t=>at(t).t===type).length;
+const STEPS=[
+  {t:"Build a street off the ramp",
+   p:"The highway runs down the west edge and a short ramp already reaches into your land. Drag Street along the 10 highlighted tiles — everyone who ever moves in arrives this way.",
+   tool:STREET,tiles:()=>P().road,satisfied:t=>isTier(at(t).t),
+   count:()=>cm(P().road,STREET)+cm(P().road,AVENUE)+cm(P().road,BOULEVARD),goal:10,unit:"street tiles"},
+  {t:"Add the side street",
+   p:"Run a street down from the middle to make a T. Seven tiles.",
+   tool:STREET,tiles:()=>P().stem,satisfied:t=>isTier(at(t).t),
+   count:()=>cm(P().stem,STREET)+cm(P().stem,AVENUE)+cm(P().stem,BOULEVARD),goal:7,unit:"street tiles"},
+  {t:"One coal plant",
+   p:"Exactly one, on the highlighted tile. It powers about 65 lots and bills you only for what it carries.",
+   tool:POWER,tiles:()=>P().coal,satisfied:t=>at(t).t===POWER,
+   count:()=>cm(P().coal,POWER),goal:1,unit:"coal plant"},
+  {t:"One water tower",
+   p:"Same again on the highlighted tile. Watch the Water gauge fill.",
+   tool:PUMP,tiles:()=>P().pump,satisfied:t=>at(t).t===PUMP,
+   count:()=>cm(P().pump,PUMP),goal:1,unit:"water tower"},
+  {t:"Zone 8 lots for homes",
+   p:"Drag Residential across the 8 highlighted lots along the main street.",
+   tool:RES,tiles:()=>P().res,satisfied:t=>at(t).t===RES,
+   count:()=>cm(P().res,RES),goal:8,unit:"lots zoned"},
+  {t:"Press Play and wait",
+   p:"People drive in from the highway and build on any lot with a street, power and water. The first houses take a few months.",
+   tool:-50,tiles:()=>[],count:()=>pop>0?1:0,goal:1,unit:"first residents"},
+  {t:"Zone 4 shops",
+   p:"Shops need customers, so they only want to build once people live here. They need fire and police cover — never schools.",
+   tool:COM,tiles:()=>P().com,satisfied:t=>at(t).t===COM,
+   count:()=>cm(P().com,COM),goal:4,unit:"shop lots"},
+  {t:"Zone 4 factories, well away",
+   p:"The highlights sit five tiles down the stem on purpose. Factories throw smog that sinks land value, and they only ever need fire cover.",
+   tool:IND,tiles:()=>P().ind,satisfied:t=>at(t).t===IND,
+   count:()=>cm(P().ind,IND),goal:4,unit:"factory lots"},
+  {t:"One landfill",
+   p:"Every building makes waste, and the Waste gauge is already ticking up. Landfills are ugly — put it at the far end, next to the factories.",
+   tool:DUMP,tiles:()=>P().dump,satisfied:t=>at(t).t===DUMP,
+   count:()=>cm(P().dump,DUMP),goal:1,unit:"landfill"},
+  {t:"Plant 2 parks",
+   p:"Parks lift land value nearby, and land value is what lets a lot grow past a small house.",
+   tool:PARK,tiles:()=>P().park,satisfied:t=>at(t).t===PARK,
+   count:()=>cm(P().park,PARK),goal:2,unit:"parks"},
+  {t:"One fire station",
+   p:"The dashed circle is its 7-tile reach. Inside it crews save the building; outside, fires spread to the neighbours.",
+   tool:FIRE,tiles:()=>P().fire,satisfied:t=>at(t).t===FIRE,
+   count:()=>cm(P().fire,FIRE),goal:1,unit:"fire station",
+   onEnter:()=>{ if(!unlocked.has(FIRE)){ unlocked.add(FIRE); buildTools(); } }},
+  {t:"That's the whole loop",
+   p:"Keep homes, shops and factories in balance — each one's demand comes from the other two. Upgrade streets when they jam, buy parcels when you run out of room, and watch the history graph for the moment growth stalls.",
+   tool:null,tiles:()=>[],count:()=>0,goal:1,last:true},
+];
+function stepProgress(){ return clamp(STEPS[tutStep].count(),0,STEPS[tutStep].goal); }
+function enterStep(){
+  const s=STEPS[tutStep];
+  if(s.onEnter) s.onEnter();
+  if(s.tool!=null&&s.tool>=0&&!painting){
+    const t=byId(s.tool);
+    if(t&&(t.unlock===0||unlocked.has(t.id))) selectTool(t);
+  }
+  glowTool(s.tool); drawTut();
+}
+function maybeAdvance(){
+  if(!tutOn||painting) return;
+  const s=STEPS[tutStep];
+  if(!s.last&&stepProgress()>=s.goal&&tutStep<STEPS.length-1){ tutStep++; enterStep(); return; }
+  drawTut();
+}
+function drawTut(){
+  const s=STEPS[tutStep];
+  $("tutN").textContent="Step "+(tutStep+1)+" of "+STEPS.length;
+  $("tutT").textContent=s.t; $("tutP").textContent=s.p;
+  $("tutProg").textContent=s.last?"":stepProgress()+" of "+s.goal+" "+(s.unit||"")+" placed";
+}
+function setTut(on){
+  tutOn=on;
+  $("tut").classList.toggle("show",on);
+  $("zoomhint").classList.toggle("show",on);
+  $("tutBtn").textContent=on?"Hide tutorial":"Tutorial";
+  $("tutBtn").classList.toggle("hot",on);
+  if(on){
+    tutPlan=makePlan();
+    if(clearPlanWater(tutPlan)){ renderBase(); }
+    tutStep=0;
+    while(tutStep<STEPS.length-1&&STEPS[tutStep].count()>=STEPS[tutStep].goal) tutStep++;
+    enterStep();
+  } else glowTool(null);
+}
+$("tutBtn").onclick=()=>setTut(!tutOn);
+$("tutX").onclick=()=>setTut(false);
+$("tutSkip").onclick=()=>{ if(tutStep<STEPS.length-1){ tutStep++; enterStep(); } else setTut(false); };
+
+// ---------- save / load ----------
+(function(){ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); storageOk=true; }
+             catch(e){ storageOk=false; } })();
+function snapshot(){
+  const t=[],dev=[],br=[],seed=[];
+  for(let i=0;i<W*H;i++){ t.push(g[i].t); dev.push(g[i].dev); br.push(g[i].bridge?1:0); seed.push(g[i].seed); }
+  return {v:9,W,H,money,week,tax,unlocked:[...unlocked],won,loans,owned:[...owned],
+          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,mapSeed,worldType};
+}
+function restore(d){
+  if(d.W!==W||d.H!==H) throw new Error("size");
+  for(let i=0;i<W*H;i++){
+    g[i].t=d.t[i]; g[i].dev=d.dev[i]; g[i].bridge=!!d.br[i]; g[i].decay=0; g[i].burning=0;
+    if(d.seed) g[i].seed=d.seed[i];
+  }
+  money=d.money; week=d.week; tax=d.tax; won=!!d.won;
+  peakTax=d.peakTax!==undefined?d.peakTax:tax; taxSum=d.taxSum||0; taxSamples=d.taxSamples||0;
+  if(d.worldType&&WORLDS[d.worldType]) worldType=d.worldType;
+  if(d.mapSeed!=null){ mapSeed=d.mapSeed; const st=$("mapSeedTag"); if(st) st.textContent=WORLDS[worldType].name+" · #"+mapSeed; }
+  unlocked=new Set(d.unlocked||[]); loans=d.loans||[];
+  achieved=new Set(d.ach||[]); perks=d.perks||{}; achTimer=d.achTimer||{}; history=d.history||[];
+  if(d.owned) owned=Uint8Array.from(d.owned);
+  computeMountainElev();
+  $("tax").value=tax; $("taxOut").textContent=tax+"%";
+  fleet=[]; buses=[]; fires=[]; crimes=[]; undoStack=[];
+  clearOverlayTools(); buildTools(); settle();
+}
+function saveGame(auto){
+  const data=snapshot();
+  if(storageOk){
+    try{ localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+         if(!auto) say("City saved in this browser."); return; }
+    catch(e){ storageOk=false; }
+  }
+  if(auto) return;
+  const blob=new Blob([JSON.stringify(data)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="willow-flats-save.json"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  say("Chrome blocks storage for files opened from disk, so the city downloaded as a save file.");
+}
+function loadGame(){
+  if(storageOk){
+    let raw=null;
+    try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){}
+    if(raw){
+      try{ restore(JSON.parse(raw)); say("City loaded — "+pop.toLocaleString()+" residents."); return; }
+      catch(e){ say("That save couldn't be read."); return; }
+    }
+  }
+  $("fileIn").click();
+}
+$("fileIn").onchange=e=>{
+  const f=e.target.files[0];
+  if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ restore(JSON.parse(r.result)); say("City loaded — "+pop.toLocaleString()+" residents."); }
+                 catch(err){ say("That file isn't a Willow Flats save."); } };
+  r.readAsText(f); e.target.value="";
+};
+$("save").onclick=()=>saveGame(false);
+$("load").onclick=()=>loadGame();
+document.querySelectorAll("[data-bond]").forEach(b=>b.onclick=()=>takeLoan(+b.dataset.bond));
+
+// ---------- dev ----------
+$("dCash").onclick=()=>{ money+=100000; hud(); };
+$("dInf").onclick=e=>{ infMoney=!infMoney; e.currentTarget.setAttribute("aria-pressed",infMoney); hud(); };
+$("dUnlock").onclick=()=>{ TOOLS.forEach(t=>unlocked.add(t.id)); buildTools(); say("All buildings unlocked."); };
+$("dLand").onclick=()=>{ owned.fill(1); settle(); say("The whole map is yours."); };
+$("dHappy").onclick=e=>{ pinHappy=!pinHappy; e.currentTarget.setAttribute("aria-pressed",pinHappy); recount(); hud(); };
+$("dCars").onclick=e=>{ showCars=!showCars; e.currentTarget.setAttribute("aria-pressed",showCars); };
+$("dNight").onclick=e=>{ dayNight=!dayNight; e.currentTarget.setAttribute("aria-pressed",dayNight); };
+$("dSkip").onclick=()=>{ for(let i=0;i<96;i++) tick(); say("Two years passed."); };
+$("dFire").onclick=()=>{
+  const pool=[];
+  for(let i=0;i<W*H;i++) if(g[i].dev>0&&isZone(g[i].t)&&!g[i].burning) pool.push(i);
+  if(!pool.length) return say("Nothing built to burn yet.");
+  igniteAt(pool[(Math.random()*pool.length)|0],"Test fire started.");
+};
+$("dTown").onclick=()=>buildTown();
+function buildTown(){
+  owned.fill(1);
+  const x0=2,x1=W-2,y0=1,y1=H-2;
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+    const c=g[idx(x,y)];
+    if(c.t===HIGHWAY) continue;
+    if(c.t!==WATER){ c.t=EMPTY; c.bridge=false; }
+    c.dev=0; c.decay=0; c.burning=0;
+  }
+  // grid every 4 tiles: 3x3 blocks, 8 of every 9 lots touch a road
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+    const c=g[idx(x,y)];
+    if(c.t===HIGHWAY) continue;
+    if((x-x0)%4&&(y-y0)%4) continue;
+    if(c.t===WATER) c.bridge=true;
+    const major=((x-x0)%16===0)||((y-y0)%16===0);
+    const mid=((x-x0)%8===0)||((y-y0)%8===0);
+    c.t=major?BOULEVARD:mid?AVENUE:STREET;
+  }
+  for(let x=2;x<=8;x++) if(g[idx(x,RAMP_Y)].t!==HIGHWAY) g[idx(x,RAMP_Y)].t=BOULEVARD;
+  // every lot that touches a road
+  const lots=[];
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+    const c=g[idx(x,y)];
+    if(c.t!==EMPTY) continue;
+    for(const [nx,ny] of N4(x,y))
+      if(inb(nx,ny)&&isTier(g[idx(nx,ny)].t)){ lots.push({x,y,i:idx(x,y)}); break; }
+  }
+  // reserve infrastructure first, then split what is left — converting zones afterwards
+  // is what used to wreck the ratio
+  const taken=new Set();
+  function lattice(type,sp){
+    let n=0;
+    for(let cy=y0+sp/2;cy<=y1;cy+=sp) for(let cxp=x0+sp/2;cxp<=x1;cxp+=sp){
+      let best=null,bd=1e9;
+      for(const s2 of lots){
+        if(taken.has(s2.i)) continue;
+        const d=Math.hypot(s2.x-cxp,s2.y-cy);
+        if(d<bd){ bd=d; best=s2; }
+      }
+      if(best){ g[best.i].t=type; g[best.i].dev=0; taken.add(best.i); n++; }
+    }
+    return n;
+  }
+  const nFire=lattice(FIRE,8),nPol=lattice(POLICE,9),nCli=lattice(CLINIC,10),
+        nSch=lattice(SCHOOL,11),nBus=lattice(BUS,6),nPark=lattice(PARK,5);
+  const svcTiles=nFire+nPol+nCli+nSch;
+  // how many utilities will the leftover lots need? solve it before placing anything
+  let plants=0,towers=0,incins=0;
+  for(let iter=0;iter<6;iter++){
+    const zoneLots=lots.length-taken.size-(plants+towers+incins);
+    const pu=zoneLots*9+svcTiles*5+nBus+incins*8+5;
+    plants=Math.ceil(pu*1.12/COAL_CAP);
+    towers=Math.ceil(zoneLots*6*1.12/PUMP_CAP);
+    incins=Math.ceil(zoneLots*6*1.12/INCIN_CAP);
+  }
+  const area=(x1-x0)*(y1-y0);
+  lattice(POWER,Math.max(5,Math.floor(Math.sqrt(area/Math.max(1,plants)))));
+  lattice(PUMP, Math.max(5,Math.floor(Math.sqrt(area/Math.max(1,towers)))));
+  lattice(INCIN,Math.max(6,Math.floor(Math.sqrt(area/Math.max(1,incins)))));
+  // 60.4 / 20.4 / 19.2 is the mix where all three demand bars sit near zero
+  const zone=lots.filter(s=>!taken.has(s.i));
+  const nInd=Math.round(zone.length*0.192),nCom=Math.round(zone.length*0.204);
+  const far=zone.slice().sort((a,b)=>(b.y*2+b.x)-(a.y*2+a.x));
+  const ind=new Set(far.slice(0,nInd).map(s=>s.i));
+  const midY=(y0+y1)/2;
+  const com=new Set(zone.filter(s=>!ind.has(s.i))
+    .sort((a,b)=>Math.abs(a.y-midY)-Math.abs(b.y-midY))
+    .slice(0,nCom).map(s=>s.i));
+  for(const s of zone){
+    const c=g[s.i];
+    c.t=ind.has(s.i)?IND:com.has(s.i)?COM:RES;
+    c.dev=3;
+  }
+  // the tower goes somewhere central
+  const centre=zone.filter(s=>g[s.i].t===RES)
+    .sort((a,b)=>Math.hypot(a.x-(x0+x1)/2,a.y-midY)-Math.hypot(b.x-(x0+x1)/2,b.y-midY))[0];
+  if(centre){ g[centre.i].t=LANDMARK; g[centre.i].dev=0; taken.add(centre.i); }
+  TOOLS.forEach(t=>unlocked.add(t.id));
+  buildTools(); money=Math.max(money,400000); settle();
+  say("Sample city: "+pop.toLocaleString()+" residents · "+(jobsC+jobsI).toLocaleString()+
+      " jobs · power "+powUse+"/"+powCap+" · water "+watUse+"/"+watCap+" · waste "+garUse+"/"+garCap+
+      " · fire "+Math.round(cover.fire*100)+"% · land value "+Math.round(avgLand));
+}
+
+// ---------- input ----------
+function tileFrom(e){
+  const r=cv.getBoundingClientRect();
+  const wx=cam.x+((e.clientX-r.left)/r.width)*(W*TS/cam.s);
+  const wy=cam.y+((e.clientY-r.top)/r.height)*(H*TS/cam.s);
+  const x=Math.floor(wx/TS),y=Math.floor(wy/TS);
+  return inb(x,y)?{x,y}:null;
+}
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+cv.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const r=cv.getBoundingClientRect();
+  const wx=cam.x+((e.clientX-r.left)/r.width)*(W*TS/cam.s);
+  const wy=cam.y+((e.clientY-r.top)/r.height)*(H*TS/cam.s);
+  const old=cam.s;
+  cam.s=clamp(cam.s*(e.deltaY<0?1.07:1/1.07),1,4);
+  cam.x=wx-(wx-cam.x)*(old/cam.s);
+  cam.y=wy-(wy-cam.y)*(old/cam.s);
+  clampCam();
+},{passive:false});
+cv.addEventListener("pointerdown",e=>{
+  audio();
+  if(inMinimap(e)){ minimapJump(e); panning="mm"; cv.setPointerCapture(e.pointerId); return; }
+  const t=tileFrom(e);
+  if(e.button===1||e.shiftKey){
+    panning=true; panFrom={mx:e.clientX,my:e.clientY,cx:cam.x,cy:cam.y};
+    cv.setPointerCapture(e.pointerId); e.preventDefault(); return;
+  }
+  if(!t) return;
+  hover=t; inspect();
+  if(e.button===2){
+    if(tool.id===UPGRADE||tool.id===BULLDOZE){
+      boxMode=tool.id; boxStart={x:t.x,y:t.y}; boxEnd={x:t.x,y:t.y};
+      cv.setPointerCapture(e.pointerId);
+    }
+    return;
+  }
+  const p=parcelOf(t.x,t.y);
+  if(!owned[p]){
+    if(!parcelBuyable(p)) return say("That land doesn't touch anything you own.");
+    buyParcel=p;
+    $("confirmTxt").textContent="Buy this parcel · "+money$(parcelCost());
+    $("confirm").classList.add("show");
+    return;
+  }
+  if(tool.id===UPGRADE){
+    const i=idx(t.x,t.y);
+    if(!isTier(g[i].t)) return say("Pick a street or avenue to start.");
+    if(upgAnchor<0||upgLocked){ clearOverlayTools(); upgAnchor=i; say("Now click the other end of the run."); }
+    else { upgPath=roadPath(upgAnchor,i); upgLocked=true; showUpgradeConfirm(); }
+    return;
+  }
+  cv.setPointerCapture(e.pointerId);
+  painting=true;
+  beginAction(tool.id===BULLDOZE?"demolition":tool.name.toLowerCase());
+  dragStart={x:t.x,y:t.y}; dragAxis=null; lastPlaced={x:t.x,y:t.y};
+  place(t.x,t.y);
+});
+cv.addEventListener("pointermove",e=>{
+  if(panning==="mm"){ minimapJump(e); return; }
+  if(panning&&panFrom){
+    const r=cv.getBoundingClientRect();
+    cam.x=panFrom.cx-((e.clientX-panFrom.mx)/r.width)*(W*TS/cam.s);
+    cam.y=panFrom.cy-((e.clientY-panFrom.my)/r.height)*(H*TS/cam.s);
+    clampCam(); return;
+  }
+  const t=tileFrom(e); hover=t;
+  if(boxStart&&t){ boxEnd={x:t.x,y:t.y}; inspect(); return; }
+  if(tool.id===UPGRADE){
+    if(t&&upgAnchor>=0&&!upgLocked){
+      const i=idx(t.x,t.y);
+      upgPath=isTier(g[i].t)?roadPath(upgAnchor,i):[];
+    }
+    inspect(); return;
+  }
+  if(painting&&t&&tool.per){
+    const target=snapTarget(t);
+    for(const p of lineTiles(lastPlaced,target)) place(p.x,p.y);
+    lastPlaced=target;
+  }
+  inspect();
+});
+function endPointer(){
+  panning=false; panFrom=null;
+  if(boxStart&&boxEnd){
+    const x0=Math.min(boxStart.x,boxEnd.x),x1=Math.max(boxStart.x,boxEnd.x);
+    const y0=Math.min(boxStart.y,boxEnd.y),y1=Math.max(boxStart.y,boxEnd.y);
+    const mode=boxMode;
+    boxStart=null; boxEnd=null; boxMode=null;
+    if(mode===BULLDOZE){
+      bullPath=[];
+      for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+        const c=g[idx(x,y)];
+        if(ownedAt(x,y)&&c.t!==EMPTY&&c.t!==WATER&&c.t!==HIGHWAY) bullPath.push(idx(x,y));
+      }
+      showBulldozeConfirm();
+    } else {
+      upgPath=[];
+      for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++)
+        if(isTier(g[idx(x,y)].t)&&ownedAt(x,y)) upgPath.push(idx(x,y));
+      upgLocked=true;
+      showUpgradeConfirm();
+    }
+    return;
+  }
+  if(!painting) return;
+  painting=false; endAction();
+  if(pendingUpdate) settle(); else maybeAdvance();
+}
+cv.addEventListener("pointerup",endPointer);
+cv.addEventListener("pointercancel",endPointer);
+cv.addEventListener("pointerleave",()=>{ hover=null; inspect(); });
+addEventListener("pointerup",endPointer);
+
+$("views").onclick=e=>{
+  if(!e.target.dataset.v) return;
+  view=e.target.dataset.v;
+  [...$("views").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===view?"true":"false"));
+  $("subs").classList.toggle("show",view==="svc");
+};
+$("subs").onclick=e=>{
+  if(!e.target.dataset.s) return;
+  sub=e.target.dataset.s;
+  [...$("subs").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===sub?"true":"false"));
+};
+$("tStraight").onclick=e=>{ straightDrag=!straightDrag; e.currentTarget.setAttribute("aria-pressed",straightDrag); };
+$("tProtect").onclick=e=>{ protectBuilt=!protectBuilt; e.currentTarget.setAttribute("aria-pressed",protectBuilt); };
+function setSpeed(s){
+  speed=s;
+  if(s>0&&!tutOn) $("speed").classList.remove("glow");
+  [...$("speed").children].forEach(b=>b.setAttribute("aria-pressed",+b.dataset.sp===s?"true":"false"));
+  hud();
+}
+$("speed").onclick=e=>{ if(e.target.dataset.sp!==undefined) setSpeed(+e.target.dataset.sp); };
+const taxEl=$("tax"),taxOut=$("taxOut");
+taxEl.oninput=()=>{ tax=+taxEl.value; peakTax=Math.max(peakTax,tax); taxOut.textContent=tax+"%"; recount(); hud(); };
+function buildSliders(){
+  $("sliders").innerHTML="";
+  for(const f of DIFF_FIELDS){
+    const d=document.createElement("div"); d.className="srow";
+    d.innerHTML='<label>'+f.label+'</label>'+
+      '<input type="range" data-d="'+f.k+'" min="'+f.min+'" max="'+f.max+'" step="'+f.step+
+      '" value="'+diff[f.k]+'"><output>'+f.fmt(diff[f.k])+'</output>';
+    const inp=d.querySelector("input"),out=d.querySelector("output");
+    inp.oninput=()=>{ diff[f.k]=+inp.value; out.textContent=f.fmt(diff[f.k]); diff.name="Custom"; updateDiffMultPreview(); };
+    $("sliders").appendChild(d);
+  }
+  updateDiffMultPreview();
+}
+function updateDiffMultPreview(){
+  const el=$("diffMultOut"); if(!el) return;
+  el.textContent="×"+diffMultiplier().toFixed(2);
+}
+document.querySelectorAll("[data-preset]").forEach(b=>{
+  b.onclick=()=>{ diff=Object.assign({},PRESETS[b.dataset.preset]); buildSliders(); };
+});
+Object.entries(WORLDS).forEach(([k,w])=>{
+  const o=document.createElement("option"); o.value=k; o.textContent=w.name;
+  $("worldSelect").appendChild(o);
+});
+$("worldSelect").value=worldType;
+function updateWorldDesc(){ $("worldDesc").textContent=WORLDS[$("worldSelect").value].desc; }
+$("worldSelect").onchange=updateWorldDesc;
+updateWorldDesc();
+$("seedRoll").onclick=()=>{ $("seedInput").value=(Math.random()*1e9|0); };
+$("setupGo").onclick=()=>{
+  audio();
+  const sv=$("seedInput").value.trim();
+  pendingSeed=sv?(parseInt(sv,10)||0):null;
+  pendingWorld=$("worldSelect").value;
+  $("setup").classList.remove("show");
+  $("diffBadge").textContent=diff.name;
+  newGame(); tool=TOOLS[0]; buildTools(); settle();
+  if(tutOn) setTut(true);
+  say("New city on "+diff.name.toLowerCase()+". "+money$(diff.cash)+" in the bank.");
+};
+$("setupCancel").onclick=()=>$("setup").classList.remove("show");
+$("reset").onclick=()=>{ buildSliders(); $("setup").classList.add("show"); };
+$("muteBtn").onclick=()=>{
+  snd.on=!snd.on;
+  $("muteBtn").textContent=snd.on?"Sound on":"Sound off";
+  $("muteBtn").classList.toggle("hot",!snd.on);
+  if(snd.on){ audio(); sfx("place"); }
+};
+$("ovX").onclick=()=>$("over").classList.remove("show");
+$("introBtn").onclick=()=>$("intro").classList.add("show");
+$("introSkip").onclick=()=>$("intro").classList.remove("show");
+$("introTut").onclick=()=>{ audio(); $("intro").classList.remove("show"); setTut(true); };
+$("introDiff").onclick=()=>{ $("intro").classList.remove("show"); buildSliders(); $("setup").classList.add("show"); };
+
+addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT") return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){ e.preventDefault(); undo(); return; }
+  const step=40/cam.s;
+  if(e.key==="ArrowLeft"){ cam.x-=step; e.preventDefault(); return; }
+  if(e.key==="ArrowRight"){ cam.x+=step; e.preventDefault(); return; }
+  if(e.key==="ArrowUp"){ cam.y-=step; e.preventDefault(); return; }
+  if(e.key==="ArrowDown"){ cam.y+=step; e.preventDefault(); return; }
+  const t=TOOLS.find(t=>t.key===e.key.toUpperCase());
+  if(t&&(t.unlock===0||unlocked.has(t.id))){ selectTool(t); e.preventDefault(); return; }
+  if(e.key==="Escape") clearOverlayTools();
+  if(e.key===" "){ e.preventDefault(); setSpeed(speed>0?0:1); }
+});
+
+// ---------- go ----------
+msgEl=$("ticker");
+tax=+taxEl.value;
+tool=TOOLS[0];
+newGame();
+buildTools();
+buildLegend();
+buildSliders();
+$("diffBadge").textContent=diff.name;
+settle();
+setSpeed(0);
+requestAnimationFrame(frame);
+$("intro").classList.add("show");
+
+})();
+</script>
+</body>
+</html>
