@@ -726,7 +726,8 @@ const rateI=()=>unlocked.has("tax2")?taxInd:tax;
 let tutOn=false,tutStep=0,tutPlan=null,phase=0;
 let painting=false,pendingUpdate=false,straightDrag=true,protectBuilt=true,noticedPlay=false;
 let dragStart=null,dragAxis=null,lastPlaced=null;
-let dayT=0.3,lastFrame=0,acc=0,fleet=[],buses=[],fires=[],crimes=[],fleetDirty=true;
+const DAY_START=8/24;      // 8am: where the clock sits at week 0 of every new city
+let dayT=DAY_START,lastFrame=0,acc=0,fleet=[],buses=[],fires=[],crimes=[],fleetDirty=true;
 let upgAnchor=-1,upgPath=[],upgLocked=false,buyParcel=-1,boxStart=null,boxEnd=null,boxMode=null,bullPath=[];
 let undoStack=[],recording=null,storageOk=true;
 let cam={x:0,y:0,s:1},panning=false,panFrom=null;
@@ -888,6 +889,7 @@ function newGame(){
   fleet=[]; buses=[]; fires=[]; crimes=[]; fleetDirty=true; history=[]; noticedPlay=false;
   undoStack=[]; recording=null; clearOverlayTools();
   cam={x:0,y:0,s:1};
+  acc=0; dayT=DAY_START;
   syncTaxInputs();
 }
 function genTerrain(){
@@ -2604,7 +2606,7 @@ function frame(ts){
   if(speed>0){
     acc+=dt*speed;
     while(acc>=0.6){ acc-=0.6; tick(); }
-    dayT=((week+acc/0.6)/WEEKS_PER_DAY)%1;
+    dayT=((week+acc/0.6)/WEEKS_PER_DAY+DAY_START)%1;
     updateFires(dt*speed);
   }
   phase++;
@@ -3047,6 +3049,7 @@ function restore(d){
     if(d.seed) g[i].seed=d.seed[i];
   }
   money=d.money; week=d.week; tax=d.tax; won=!!d.won;
+  acc=0; dayT=(week/WEEKS_PER_DAY+DAY_START)%1;
   peakTax=d.peakTax!==undefined?d.peakTax:tax; taxSum=d.taxSum||0; taxSamples=d.taxSamples||0;
   cityName=d.cityName||randomCityName(); syncCityName();
   if(d.worldType&&WORLDS[d.worldType]) worldType=d.worldType;
