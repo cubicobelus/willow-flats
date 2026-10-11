@@ -125,6 +125,10 @@
     font-family:"Barlow Semi Condensed",sans-serif;font-size:12px;padding:4px 8px;border-radius:5px;
     pointer-events:none;line-height:1.3;display:none}
   .zoomhint.show{display:block}
+  #tip{position:fixed;z-index:60;max-width:270px;display:none;pointer-events:none;background:rgba(14,26,33,.97);
+    border:1px solid var(--accent);color:var(--text);font-size:13px;line-height:1.4;padding:7px 10px;border-radius:6px;
+    box-shadow:0 4px 14px rgba(0,0,0,.45)}
+  #tip.show{display:block}
 
   .track{flex:1;height:8px;background:#0a1319;border-radius:99px;overflow:hidden}
   .fill{height:100%;width:0;border-radius:99px;transition:width .4s ease}
@@ -270,8 +274,8 @@
     <div class="seg" id="speed">
       <button data-sp="0" aria-pressed="true">Pause</button><button data-sp="1">Play</button><button data-sp="3">Fast</button>
     </div>
-    <button class="linkbtn icon" id="muteBtn" title="Sound on" aria-label="Sound on"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="w" d="M16 9a4 4 0 0 1 0 6"/><path class="w" d="M18.5 6.5a8 8 0 0 1 0 11"/><path class="x" d="M16 9l5 6M21 9l-5 6"/></svg></button>
-    <button class="linkbtn icon" id="fsBtn" title="Fullscreen" aria-label="Fullscreen" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path class="out" d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5"/></svg></button>
+    <button class="linkbtn icon" id="muteBtn" data-tip="Sound on" aria-label="Sound on"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="w" d="M16 9a4 4 0 0 1 0 6"/><path class="w" d="M18.5 6.5a8 8 0 0 1 0 11"/><path class="x" d="M16 9l5 6M21 9l-5 6"/></svg></button>
+    <button class="linkbtn icon" id="fsBtn" data-tip="Fullscreen" aria-label="Fullscreen" style="display:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="in" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path class="out" d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5"/></svg></button>
     <button class="linkbtn" id="undoBtn" disabled>Undo</button>
     <button class="linkbtn" id="introBtn">Help</button>
   </header>
@@ -279,24 +283,24 @@
   <div class="stats">
     <div class="stat"><div class="k">Treasury</div><div class="v" id="sMoney">$20,000</div>
       <div class="sm" id="sFlow">$0 / month</div></div>
-    <div class="stat"><div class="k">Population</div><div class="v" id="sPop">0</div><div class="sm" id="sJobs">0 jobs</div></div>
-    <div class="stat"><div class="k">Happiness</div><div class="v" id="sHappy">—</div><div class="sm" id="sHint">no residents</div></div>
-    <div class="stat"><div class="k">Land value</div><div class="v" id="sLand">—</div><div class="sm" id="sTraf">no traffic</div></div>
+    <div class="stat" data-tip="Residents, and the jobs on offer. ‘Out of town’ jobs come in along the highway."><div class="k">Population</div><div class="v" id="sPop">0</div><div class="sm" id="sJobs">0 jobs</div></div>
+    <div class="stat" data-tip="Services and parks raise it. High taxes, shortages, traffic and crime lower it."><div class="k">Happiness</div><div class="v" id="sHappy">—</div><div class="sm" id="sHint">no residents</div></div>
+    <div class="stat" data-tip="Decides how tall lots grow. Parks and services raise it; smog, landfills, traffic and crime lower it."><div class="k">Land value</div><div class="v" id="sLand">—</div><div class="sm" id="sTraf">no traffic</div></div>
     <div class="stat"><div class="k">Date</div><div class="v" id="sDate">Jan 2000</div><div class="sm" id="sTime">06:00</div></div>
   </div>
 
   <div class="meters">
-    <div class="gauge"><div class="top"><span class="nm">Power</span><span class="num" id="powNum">0 / 0 MW</span></div>
+    <div class="gauge" data-tip="Power used out of capacity. Over capacity means brownouts: add a coal plant or wind farm."><div class="top"><span class="nm">Power</span><span class="num" id="powNum">0 / 0 MW</span></div>
       <div class="bar"><i id="powBar"></i></div></div>
-    <div class="gauge"><div class="top"><span class="nm">Water</span><span class="num" id="watNum">0 / 0 kL</span></div>
+    <div class="gauge" data-tip="Water used out of capacity. Over capacity means dry taps: add a water tower."><div class="top"><span class="nm">Water</span><span class="num" id="watNum">0 / 0 kL</span></div>
       <div class="bar"><i id="watBar"></i></div></div>
-    <div class="gauge"><div class="top"><span class="nm">Waste</span><span class="num" id="garNum">0 / 0 t</span></div>
+    <div class="gauge" data-tip="Waste made out of capacity. Over capacity means it piles up: add a landfill."><div class="top"><span class="nm">Waste</span><span class="num" id="garNum">0 / 0 t</span></div>
       <div class="bar"><i id="garBar"></i></div></div>
-    <div class="gauge"><div class="top"><span class="nm">Homes wanted</span></div>
+    <div class="gauge" data-tip="How strongly the city wants more homes. A full bar means zone more."><div class="top"><span class="nm">Homes wanted</span></div>
       <div class="track"><div class="fill" id="dRes" style="background:var(--res)"></div></div></div>
-    <div class="gauge"><div class="top"><span class="nm">Shops wanted</span></div>
+    <div class="gauge" data-tip="How strongly the city wants more shops. A full bar means zone more."><div class="top"><span class="nm">Shops wanted</span></div>
       <div class="track"><div class="fill" id="dCom" style="background:var(--com)"></div></div></div>
-    <div class="gauge"><div class="top"><span class="nm">Factories</span></div>
+    <div class="gauge" data-tip="How strongly the city wants more factories. A full bar means zone more."><div class="top"><span class="nm">Factories</span></div>
       <div class="track"><div class="fill" id="dInd" style="background:var(--ind)"></div></div></div>
   </div>
 
@@ -322,12 +326,12 @@
     <button data-s="transit">Transit</button>
   </div>
   <div class="row" style="margin-top:10px">
-    <button class="linkbtn" id="save" title="Saves to slot 2; the save before it moves to slot 3">Save</button>
+    <button class="linkbtn" id="save" data-tip="Saves to slot 2. The previous save moves to slot 3.">Save</button>
     <button class="linkbtn" id="load">Load</button>
     <button class="linkbtn" id="reset">New map</button>
     <input type="file" id="fileIn" accept="application/json" style="display:none">
   </div>
-  <div class="taxbox">
+  <div class="taxbox" data-tip="Each point above 9% brings in about 11% more but costs about 2.6 happiness. Lower taxes also score better.">
     <label for="tax">Tax rate</label>
     <output id="taxOut">9%</output>
     <input type="range" id="tax" min="3" max="20" step="1" value="9">
@@ -366,8 +370,8 @@
   <div class="tools" id="tools"></div>
 
   <div class="toggles">
-    <button id="tStraight" aria-pressed="true">Straight-line drag</button>
-    <button id="tProtect" aria-pressed="true">Protect built lots</button>
+    <button id="tStraight" aria-pressed="true" data-tip="Dragging snaps to one straight line, so streets and zones come out neat.">Straight-line drag</button>
+    <button id="tProtect" aria-pressed="true" data-tip="Stops you building over something already built. Bulldoze it first, or turn this off.">Protect built lots</button>
   </div>
 
   </div>
@@ -520,6 +524,7 @@
       <button class="linkbtn" id="introSkip">I'll figure it out</button>
       <button class="linkbtn" id="introDiff">Difficulty…</button>
     </div>
+    <p style="margin:12px 0 0;font-size:13px">Tip: rest the mouse on a tool, a number or a bar for a short explanation.</p>
   </div>
 </div>
 
@@ -580,6 +585,8 @@
     <div class="btns" style="margin-top:16px"><button class="primary" id="ovX">Keep playing</button></div>
   </div>
 </div>
+
+<div id="tip" role="tooltip"></div>
 
 <script>
 (() => {
@@ -2729,6 +2736,34 @@ function inspect(){
 
 // ---------- tools ----------
 const toolbar=$("tools");
+// Short hover text for each tool; numbers come from the same constants the game uses.
+function toolTip(t,lock){
+  const up=UPKEEP[t.id]||[0,0];
+  const T={
+    [STREET]:"Roads carry traffic. A bridge over water costs $70 a tile.",
+    [UPGRADE]:"Street to avenue $35 a tile, avenue to boulevard $120. Click two ends of a run, or right-drag a box.",
+    [RES]:"Homes: 7, 18 or 38 people as land value grows. They need jobs, power, water and services.",
+    [COM]:"Shops: 5, 12 or 24 jobs. They need customers, plus fire and police cover.",
+    [IND]:"Factories: 8, 18 or 36 jobs, but their smog lowers land value downwind.",
+    [POWER]:COAL_CAP+" MW, about 65 lots. $"+up[0]+" a month idle, $"+up[1]+" at full load. It smokes.",
+    [WIND]:WIND_CAP+" MW with no smoke, but it costs more to build.",
+    [PUMP]:PUMP_CAP+" kL of water, about 65 lots.",
+    [RESV]:RESV_CAP+" kL on one tile: more than double a water tower, for less space.",
+    [DUMP]:DUMP_CAP+" t of waste. A big land-value hit nearby, so keep it away from homes.",
+    [INCIN]:INCIN_CAP+" t on one tile, no smog and only a small land-value hit.",
+    [PARK]:"Raises land value nearby and adds a little happiness (up to +10 in all).",
+    [FIRE]:"Covers "+radiusOf(FIRE)+" tiles. Inside it fires are put out; outside they spread.",
+    [POLICE]:"Covers "+radiusOf(POLICE)+" tiles and cuts crime by about two thirds there.",
+    [CLINIC]:"Covers "+radiusOf(CLINIC)+" tiles. Only homes need it.",
+    [SCHOOL]:"Covers "+radiusOf(SCHOOL)+" tiles. Only homes need it.",
+    [BUS]:"Works in pairs: with two or more stops, homes within "+BUS_R+" tiles send about "+Math.round(BUS_SHARE*100)+"% fewer cars onto the roads.",
+    [LANDMARK]:"Sets land value to 100 within 5 tiles. You can only build one.",
+    [CIND]:"Factories with no smog. Unlocks once you have raised the Willow Tower.",
+    [BULLDOZE]:"Clears a tile and refunds 40% of its cost. Right-drag to clear a box.",
+  }[t.id]||"";
+  const pre=lock&&t.unlock>0?"Unlocks at "+t.unlock.toLocaleString()+" residents. ":"";
+  return pre+T;
+}
 function buildTools(){
   toolbar.innerHTML="";
   TOOLS.forEach(t=>{
@@ -2738,20 +2773,17 @@ function buildTools(){
     b.className="tool"+(lock?" locked":"");
     b.dataset.tid=t.id;
     b.setAttribute("aria-pressed",(!lock&&tool&&tool.id===t.id)?"true":"false");
-    let ct,tip="";
+    let ct;
     if(built) ct="built";
     else if(lock) ct=t.unlock<0?"after charter":"at "+t.unlock.toLocaleString()+" pop";
-    else if(t.id===UPGRADE){ ct="$35–120 / tile"; tip="Street to avenue $35/tile, avenue to boulevard $120/tile."; }
+    else if(t.id===UPGRADE) ct="$35–120 / tile";
     else if(t.id===BULLDOZE) ct="free · refunds 40%";
     else {
       ct="$"+toolCost(t.id).toLocaleString()+(t.per?" / tile":"");
-      if(t.id===STREET) tip="Bridges over water for $70 a tile.";
-      else if(t.id===RESV) tip="950 kL on one tile — more than double a water tower's capacity, for less space.";
-      else if(t.id===INCIN) tip="750 t of capacity on one tile, no smog, small land-value hit.";
     }
     b.innerHTML='<span class="swatch" style="background:'+t.color+'"></span><span class="lbl">'+
       t.name+'<span class="cost">'+ct+'</span></span><kbd>'+t.key+'</kbd>';
-    if(tip) b.title=tip;
+    b.dataset.tip=toolTip(t,lock);
     if(!lock) b.onclick=()=>selectTool(t);
     toolbar.appendChild(b);
   });
@@ -3313,12 +3345,12 @@ if(document.fullscreenEnabled){
   };
   document.addEventListener("fullscreenchange",()=>{
     const on=!!document.fullscreenElement;
-    fsb.title=on?"Exit fullscreen":"Fullscreen"; fsb.setAttribute("aria-label",fsb.title); fsb.classList.toggle("on",on);
+    fsb.dataset.tip=on?"Exit fullscreen":"Fullscreen"; fsb.setAttribute("aria-label",fsb.dataset.tip); fsb.classList.toggle("on",on);
   });
 }
 $("muteBtn").onclick=()=>{
   snd.on=!snd.on;
-  const mb=$("muteBtn"); mb.title=snd.on?"Sound on":"Sound off"; mb.setAttribute("aria-label",mb.title);
+  const mb=$("muteBtn"); mb.dataset.tip=snd.on?"Sound on":"Sound off"; mb.setAttribute("aria-label",mb.dataset.tip);
   mb.classList.toggle("off",!snd.on);
   if(snd.on){ audio(); sfx("place"); }
 };
@@ -3342,6 +3374,37 @@ addEventListener("keydown",e=>{
   if(e.key==="Escape"){ $("slots").classList.remove("show"); clearOverlayTools(); }
   if(e.key===" "){ e.preventDefault(); setSpeed(speed>0?0:1); }
 });
+
+// ---------- hover tips ----------
+// Any element with data-tip shows a short tip after the pointer rests on it for a moment (or on keyboard focus).
+let tipTimer=null,tipCur=null;
+function hideTip(){ clearTimeout(tipTimer); tipTimer=null; tipCur=null; $("tip").classList.remove("show"); }
+function showTip(el){
+  if(!el.isConnected||!el.dataset.tip) return;
+  const tp=$("tip"); tp.textContent=el.dataset.tip; tp.classList.add("show");
+  const r=el.getBoundingClientRect(),w=tp.offsetWidth,h=tp.offsetHeight;
+  let x=r.left+r.width/2-w/2,y=r.bottom+8;
+  if(y+h>innerHeight-4) y=r.top-h-8;
+  // the tools sit in a tight two-column grid on the right: open the tip to the left of the whole grid,
+  // level with the hovered tool, so it covers only the map and never another tool
+  const tc=el.closest(".toolcol");
+  if(tc){ const cl=tc.getBoundingClientRect().left; if(cl-w-8>6){ x=cl-w-8; y=r.top+r.height/2-h/2; } }
+  tp.style.left=Math.max(6,Math.min(x,innerWidth-w-6))+"px"; tp.style.top=Math.max(6,Math.min(y,innerHeight-h-6))+"px";
+}
+document.addEventListener("pointerover",e=>{
+  const el=e.target.closest&&e.target.closest("[data-tip]");
+  if(el===tipCur) return;
+  hideTip();
+  if(!el||e.pointerType==="touch") return;
+  tipCur=el; tipTimer=setTimeout(()=>showTip(el),600);
+});
+document.addEventListener("pointerdown",hideTip);
+document.addEventListener("scroll",hideTip,true);
+document.addEventListener("focusin",e=>{
+  const el=e.target.closest&&e.target.closest("[data-tip]");
+  if(el&&e.target.matches&&e.target.matches(":focus-visible")){ hideTip(); tipCur=el; showTip(el); }
+});
+document.addEventListener("focusout",hideTip);
 
 // ---------- go ----------
 msgEl=$("ticker");

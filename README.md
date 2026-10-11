@@ -32,7 +32,7 @@ crime pull it down.
 - **Money:** a tax slider, bonds, land parcels to buy, and a bulldoze tool that refunds part of the cost
 - **Goals:** a charter to complete, ten commendations that earn permanent discounts, and a score when you finish
 - **Three save slots:** an autosave, your latest save and the one before it, all kept in your browser, with a Continue option on the intro screen
-- **Quality of life:** undo, a minimap, a history graph, day and night, sound effects, zoom and pan, and a fullscreen button
+- **Quality of life:** undo, a minimap, a history graph, day and night, sound effects, zoom and pan, a fullscreen button, and short hover tips
 
 ## Controls
 
