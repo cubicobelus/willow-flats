@@ -265,6 +265,7 @@
       <button data-sp="0" aria-pressed="true">Pause</button><button data-sp="1">Play</button><button data-sp="3">Fast</button>
     </div>
     <button class="linkbtn" id="muteBtn">Sound on</button>
+    <button class="linkbtn" id="fsBtn" style="display:none">Fullscreen</button>
     <button class="linkbtn" id="undoBtn" disabled>Undo</button>
     <button class="linkbtn" id="introBtn">What is this?</button>
     <button class="linkbtn" id="tutBtn">Tutorial</button>
@@ -3296,6 +3297,18 @@ $("setupGo").onclick=()=>{
 };
 $("setupCancel").onclick=()=>$("setup").classList.remove("show");
 $("reset").onclick=()=>{ buildSliders(); $("setup").classList.add("show"); };
+// Fullscreen: hidden where the browser doesn't support it. Esc is taken by the browser to leave fullscreen.
+if(document.fullscreenEnabled){
+  const fsb=$("fsBtn"); fsb.style.display="";
+  fsb.onclick=()=>{
+    if(document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(()=>{});
+  };
+  document.addEventListener("fullscreenchange",()=>{
+    const on=!!document.fullscreenElement;
+    fsb.textContent=on?"Exit fullscreen":"Fullscreen"; fsb.classList.toggle("hot",on);
+  });
+}
 $("muteBtn").onclick=()=>{
   snd.on=!snd.on;
   $("muteBtn").textContent=snd.on?"Sound on":"Sound off";
