@@ -66,6 +66,9 @@
   .keygrid div.lk{opacity:.45}
   .kk{flex:none;min-width:26px;text-align:center;font-size:12px;font-weight:600;color:var(--accent);border:1px solid var(--line);
     border-radius:4px;padding:1px 6px;background:#0e1a21;white-space:nowrap}
+  #nameInput{width:100%;background:var(--ink);border:1px solid var(--line);color:var(--text);border-radius:6px;
+    font:600 18px "Barlow Semi Condensed",sans-serif;padding:8px 10px}
+  #nameInput:focus{outline:none;border-color:var(--accent)}
   .cityname{width:100%;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);
     font:600 18px "Barlow Semi Condensed",sans-serif;padding:3px 6px;text-overflow:ellipsis}
   .cityname:hover{border-color:var(--line)}
@@ -577,6 +580,16 @@
   </div>
 </div>
 
+<div class="over" id="nameDlg">
+  <div class="card">
+    <div class="kicker">New city</div>
+    <h2>Name your city</h2>
+    <p>Leave it blank to use the suggestion. You can rename your city any time, top left.</p>
+    <input type="text" id="nameInput" maxlength="28" autocomplete="off" spellcheck="false" aria-label="City name">
+    <div class="btns" style="margin-top:14px"><button class="primary" id="nameGo">Start</button></div>
+  </div>
+</div>
+
 <div class="over" id="keys">
   <div class="card">
     <div class="kicker">Controls</div>
@@ -759,7 +772,7 @@ function mulberry32(a){
 const CITY_NAMES=["Maple Hollow","Brookfield","Cedar Point","Stonebridge","Oakmere","Fernhill","Riverbend","Larkspur",
   "Meadowvale","Thistledown","Harbor Glen","Pinecrest","Alder Creek","Honeywell","Copper Ridge","Elmstead","Juniper Bay",
   "Marigold","Quillfeather","Sparrow Green","Tumbleweed","Windmere","Hazelbrook","Bluebell Cross"];
-let cityName="",pendingName=null;
+let cityName="",pendingName=null,nameFromLink=false,startScreen=true;
 const randomCityName=()=>CITY_NAMES[(Math.random()*CITY_NAMES.length)|0];
 function syncCityName(){
   $("cityName").value=cityName;
@@ -3157,6 +3170,21 @@ function buildSlotList(){
   });
 }
 function openSaves(){ buildSlotList(); $("slots").classList.add("show"); }
+// Ask for a name whenever a new city starts. Blank (or Esc) keeps the suggestion shown in the box.
+let nameNext=null;
+function askCityName(next){
+  nameNext=next;
+  const inp=$("nameInput"); inp.value=""; inp.placeholder=randomCityName();
+  $("nameDlg").classList.add("show"); setTimeout(()=>inp.focus(),30);
+}
+function nameDone(){
+  const inp=$("nameInput"),v=inp.value.trim()||inp.placeholder;
+  $("nameDlg").classList.remove("show");
+  const next=nameNext; nameNext=null;
+  if(next) next(v);
+}
+$("nameGo").onclick=nameDone;
+$("nameInput").onkeydown=e=>{ if(e.key==="Enter"||e.key==="Escape"){ e.preventDefault(); nameDone(); } };
 $("cityName").oninput=()=>{ cityName=$("cityName").value; document.title=(cityName.trim()||"Willow Flats")+" — Willow Flats"; };
 $("cityName").onblur=()=>{ cityName=cityName.trim()||randomCityName(); syncCityName(); };
 $("cityName").onkeydown=e=>{ if(e.key==="Enter"||e.key==="Escape") $("cityName").blur(); };
@@ -3216,7 +3244,7 @@ function applyLink(){
     }
   }
   const nm=(q.get("name")||"").replace(/[\u0000-\u001f<>]/g,"").trim().slice(0,28);
-  if(nm){ pendingName=nm; used=true; }
+  if(nm){ pendingName=nm; nameFromLink=true; used=true; }
   if(used) window.history.replaceState(null,"",location.href.split(/[?#]/)[0]);
   return used;
 }
@@ -3518,13 +3546,15 @@ $("seedRoll").onclick=()=>{ $("seedInput").value=(Math.random()*1e9|0); };
 $("setupGo").onclick=()=>{
   audio();
   const sv=$("seedInput").value.trim();
-  pendingSeed=sv?(parseInt(sv,10)||0):null;
-  pendingWorld=$("worldSelect").value;
+  const seed=sv?(parseInt(sv,10)||0):null,world=$("worldSelect").value;
   $("setup").classList.remove("show");
-  $("diffBadge").textContent=diff.name;
-  newGame(); tool=TOOLS[0]; buildTools(); settle();
-  if(tutOn) setTut(true);
-  say("New city on "+diff.name.toLowerCase()+". "+money$(diff.cash)+" in the bank.");
+  askCityName(nm=>{
+    pendingSeed=seed; pendingWorld=world; pendingName=nm;
+    $("diffBadge").textContent=diff.name;
+    newGame(); tool=TOOLS[0]; buildTools(); settle();
+    if(tutOn) setTut(true);
+    say("New city on "+diff.name.toLowerCase()+". "+money$(diff.cash)+" in the bank.");
+  });
 };
 $("setupCancel").onclick=()=>$("setup").classList.remove("show");
 $("reset").onclick=()=>{ buildSliders(); $("setup").classList.add("show"); };
@@ -3548,8 +3578,14 @@ $("muteBtn").onclick=()=>{
 };
 $("ovX").onclick=()=>$("over").classList.remove("show");
 $("introBtn").onclick=()=>$("intro").classList.add("show");
-$("introSkip").onclick=()=>$("intro").classList.remove("show");
-$("introTut").onclick=()=>{ audio(); $("intro").classList.remove("show"); setTut(true); };
+// On the start screen the city already exists, so naming it just sets the name; later these buttons only close or restart the tutorial.
+const nameThenGo=go=>{
+  $("intro").classList.remove("show");
+  if(startScreen&&!nameFromLink) askCityName(nm=>{ cityName=nm; syncCityName(); go(); });
+  else go();
+};
+$("introSkip").onclick=()=>nameThenGo(()=>{});
+$("introTut").onclick=()=>{ audio(); nameThenGo(()=>setTut(true)); };
 $("introDiff").onclick=()=>{ $("intro").classList.remove("show"); buildSliders(); $("setup").classList.add("show"); };
 
 addEventListener("keydown",e=>{
@@ -3564,7 +3600,7 @@ addEventListener("keydown",e=>{
   if(e.key==="?"){ e.preventDefault(); openKeys(); return; }
   const t=TOOLS.find(t=>t.key===e.key.toUpperCase());
   if(t&&(t.unlock===0||unlocked.has(t.id))){ selectTool(t); e.preventDefault(); return; }
-  if(e.key==="Escape"){ $("slots").classList.remove("show"); $("keys").classList.remove("show"); clearOverlayTools(); }
+  if(e.key==="Escape"){ if($("nameDlg").classList.contains("show")){ nameDone(); return; } $("slots").classList.remove("show"); $("keys").classList.remove("show"); clearOverlayTools(); }
   if(e.key===" "){ e.preventDefault(); setSpeed(speed>0?0:1); }
 });
 
@@ -3614,7 +3650,7 @@ setSpeed(0);
 requestAnimationFrame(frame);
 $("intro").classList.add("show");
 // Continue only exists on the start screen; once the intro is dismissed it is gone and "New game" becomes "Close".
-function hideContinue(){ $("introContinue").style.display="none"; $("introTut").className="primary"; $("introSkip").textContent="Close"; }
+function hideContinue(){ startScreen=false; $("introContinue").style.display="none"; $("introTut").className="primary"; $("introSkip").textContent="Close"; }
 ["introSkip","introTut","introDiff"].forEach(id=>$(id).addEventListener("click",hideContinue));
 if(storageOk){
   const ls=latestSave();
