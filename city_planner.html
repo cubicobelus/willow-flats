@@ -719,7 +719,8 @@ const UPKEEP={[STREET]:[0.6,0.6],[AVENUE]:[2.2,2.2],[BOULEVARD]:[5,5],[HIGHWAY]:
   [BUS]:[6,34],[LANDMARK]:[0,0]};
 const SERVICES=[{t:FIRE,r:7,key:"fire"},{t:POLICE,r:8,key:"police"},
                 {t:CLINIC,r:9,key:"clinic"},{t:SCHOOL,r:10,key:"school"}];
-const radiusOf=t=>{const s=SERVICES.find(s=>s.t===t);return s?s.r:(t===BUS?BUS_R:0);};
+const svcRadius=sv=>sv.r+((sv.key==="fire"||sv.key==="police")&&policyOn("safety")?2:0);   // Safety campaign: +2 tiles
+const radiusOf=t=>{const s=SERVICES.find(s=>s.t===t);return s?svcRadius(s):(t===BUS?BUS_R:0);};
 const svcByKey=k=>SERVICES.find(s=>s.key===k);
 const NEEDS={4:["fire","police","clinic","school"],5:["fire","police"],6:["fire"],22:["fire"]};
 const RANKS=[{pop:0,name:"Settlement"},{pop:100,name:"Village"},{pop:400,name:"Small town"},
@@ -748,11 +749,11 @@ let taxRes=9,taxCom=9,taxInd=9;
 // Policies: city-wide rules that cost money every month. Slots unlock with the city. Rates are dollars per resident per month (a starting point to tune).
 const POLICY_POP=800;
 const POLICIES=[
-  {id:"recycle",name:"Recycling",effect:"About 25% less waste, so you need fewer landfills.",trade:"The cost is its only downside.",rate:0.020},
-  {id:"clean",name:"Clean air rules",effect:"About 40% less smog from factories, power plants and landfills.",trade:"Factories pay about 10% less tax.",rate:0.030},
-  {id:"buses",name:"Free buses",effect:"Bus stops take about 65% of nearby homes' cars off the roads instead of 45%.",trade:"Plus a small fee for every bus stop.",rate:0.015,perStop:12},
-  {id:"safety",name:"Safety campaign",effect:"About 30% fewer fires and break-ins.",trade:"Most useful on the harder difficulties.",rate:0.030},
-  {id:"tourism",name:"Tourism campaign",effect:"More demand for shops.",trade:"A little more traffic (about 5%).",rate:0.040},
+  {id:"recycle",name:"Recycling",effect:"About 25% less waste, so you need fewer landfills.",trade:"Worth it in a big city short of landfill space.",rate:0.010},
+  {id:"clean",name:"Clean air rules",effect:"About 40% less smog from factories, power plants and landfills.",trade:"Worth it next to a lot of industry.",rate:0.007},
+  {id:"buses",name:"Free buses",effect:"Bus stops take about 65% of nearby homes' cars off the roads instead of 45%.",trade:"Worth it when your roads are jammed.",rate:0.004},
+  {id:"safety",name:"Safety campaign",effect:"Patrols and drills stretch fire and police coverage by 2 tiles.",trade:"Worth it when your coverage has gaps.",rate:0.020},
+  {id:"tourism",name:"Tourism campaign",effect:"Shops earn about 10% more, and a little more demand for new shops.",trade:"A little more traffic (about 5%).",rate:0.012},
 ];
 let policies=new Set();
 const policyOn=id=>policies.has(id);
@@ -1138,7 +1139,7 @@ function updateServices(){
       if(g[i].t!==s.t) continue;
       const net=hookNet(i);
       if(net<0||!hasP[net]) continue;
-      stamp(i,s.r,j=>covGrid[j]|=(1<<bit));
+      stamp(i,svcRadius(s),j=>covGrid[j]|=(1<<bit));
     }
   });
   let stops=0;
@@ -1370,7 +1371,7 @@ function recount(){
   // denominators grow with the city, otherwise every bar pins to ±1 past a few thousand people
   const dn=pop*0.02;
   dRes=clamp((jobs-workforce)/(60+dn),-1,1);
-  dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn)-(rateC()-9)*TAX_DEMAND+(policyOn("tourism")?0.15:0),-1,1);
+  dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn)-(rateC()-9)*TAX_DEMAND+(policyOn("tourism")?0.10:0),-1,1);
   dInd=clamp((pop*0.16+jobsC*0.75-jobsI*1.05)/(40+dn)-(rateI()-9)*TAX_DEMAND,-1,1);
   let h=74-(rateR()-9)*2.6;
   h+=Math.min(10,parks*.7);
@@ -1383,8 +1384,8 @@ function recount(){
   happy=pinHappy?90:Math.round(clamp(h,0,100));
   const f=(happy/72)*clamp(avgLand/55,.55,1.6)*diff.income/9;
   inc.res=Math.round(pop*0.55*f*rateR());
-  inc.com=Math.round(jobsC*0.40*f*rateC());
-  inc.ind=Math.round(jobsI*0.33*f*rateI()*(policyOn("clean")?0.9:1));
+  inc.com=Math.round(jobsC*0.40*f*rateC()*(policyOn("tourism")?1.10:1));
+  inc.ind=Math.round(jobsI*0.33*f*rateI());
   inc.total=inc.res+inc.com+inc.ind;
   netFlow=Math.round(inc.total-upk.total);
 }
@@ -1437,13 +1438,13 @@ function hazards(){
       const c=g[i];
       if(c.dev>0&&isZone(c.t)&&!c.burning&&!hasCover(i,"fire")) risky.push(i);
     }
-    if(risky.length&&Math.random()<Math.min(.35,risky.length/280)*diff.hazard*(policyOn("safety")?0.7:1))
+    if(risky.length&&Math.random()<Math.min(.35,risky.length/280)*diff.hazard)
       igniteAt(risky[(Math.random()*risky.length)|0],"Fire with no station in range — it will spread.");
   }
   if(week%8===0&&unlocked.has(POLICE)&&pop>200){
     const hot=[];
     for(let i=0;i<W*H;i++) if(isZone(g[i].t)&&g[i].dev>0&&crime[i]>45) hot.push(i);
-    if(hot.length&&Math.random()<Math.min(.5,hot.length/120)*diff.hazard*(policyOn("safety")?0.7:1)){
+    if(hot.length&&Math.random()<Math.min(.5,hot.length/120)*diff.hazard){
       const i=hot[(Math.random()*hot.length)|0];
       const loss=Math.round(40+inc.total*0.25*clamp(crime[i]/100,0,1));
       if(!infMoney) money-=loss;
@@ -3097,6 +3098,7 @@ function restore(d){
     if(d.seed) g[i].seed=d.seed[i];
   }
   money=d.money; week=d.week; tax=d.tax; won=!!d.won;
+  if(d.pop!=null) pop=d.pop;
   acc=0; dayT=(week/WEEKS_PER_DAY+DAY_START)%1;
   peakTax=d.peakTax!==undefined?d.peakTax:tax; taxSum=d.taxSum||0; taxSamples=d.taxSamples||0;
   cityName=d.cityName||randomCityName(); syncCityName();
@@ -3269,7 +3271,7 @@ function applyLink(){
   if(used) window.history.replaceState(null,"",location.href.split(/[?#]/)[0]);
   return used;
 }
-function policyCost(pl){ let c=pop*pl.rate; if(pl.perStop) c+=pl.perStop*countType(BUS); return Math.round(c); }
+function policyCost(pl){ return Math.round(pop*pl.rate); }
 function polUI(){
   const on=unlocked.has("pol"),b=$("polBtn");
   b.disabled=!on;
