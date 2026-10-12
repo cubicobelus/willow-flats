@@ -134,6 +134,10 @@
     padding:6px 10px;font-family:"Barlow Semi Condensed",sans-serif;font-size:13.5px;
     color:var(--muted);line-height:1.35}
   .msgbar.alert{color:var(--accent)}
+  .msgbar{display:flex;align-items:center;gap:10px}
+  .msgbar #tickerText{flex:1;min-width:0}
+  #tickerGo{flex:none;pointer-events:auto;padding:2px 10px;font-size:13px}
+  #tickerGo[hidden]{display:none}
 
   .inspect{position:absolute;left:8px;top:8px;background:rgba(16,28,36,.92);color:var(--text);
     font-family:"Barlow Semi Condensed",sans-serif;font-size:12.5px;padding:5px 9px;border-radius:5px;
@@ -404,7 +408,7 @@
       <div class="prog" id="tutProg"></div>
       <div class="warnrow" id="tutWarn" style="display:none"><span id="tutWarnT"></span><button class="linkbtn" id="tutFix">Clear them for me</button></div>
     </div>
-  <div class="msgbar" id="ticker">Paused. The highway runs down the west edge — build streets off the ramp, then press Play or hit space.</div>
+  <div class="msgbar" id="ticker"><span id="tickerText">Paused. The highway runs down the west edge — build streets off the ramp, then press Play or hit space.</span><button class="linkbtn" id="tickerGo" hidden>Show me</button></div>
     </div>
   </div>
   </div>
@@ -930,7 +934,7 @@ function newGame(){
   undoStack=[]; recording=null; clearOverlayTools();
   cam={x:0,y:0,s:1};
   acc=0; dayT=DAY_START;
-  syncTaxInputs();
+  syncTaxInputs(); updateShareTip();
 }
 function genTerrain(){
   if(worldType==="coastal") genCoastalWater();
@@ -1428,7 +1432,7 @@ function igniteAt(i,reason){
   c.burning=saved?2.2:5.0;
   fires.push({i,t:c.burning,saved,spread:saved?0:2.0});
   if(fires.length===1) sfx("siren");
-  if(reason) say(reason);
+  if(reason) say(reason,i);
   return true;
 }
 function hazards(){
@@ -1449,7 +1453,7 @@ function hazards(){
       const loss=Math.round(40+inc.total*0.25*clamp(crime[i]/100,0,1));
       if(!infMoney) money-=loss;
       crimes.push({i,t:3.0}); sfx("alarm");
-      say("Break-ins cost the city "+money$(loss)+". Crime is "+Math.round(crime[i])+" on that block.");
+      say("Break-ins cost the city "+money$(loss)+". Crime is "+Math.round(crime[i])+" on that block.",i);
     }
   }
 }
@@ -1666,15 +1670,19 @@ function showEnding(){
   try{ best=parseInt(localStorage.getItem("willowflats-best")||"0",10)||0; }catch(e){}
   const isBest=sc.final>best;
   if(isBest){ best=sc.final; try{ localStorage.setItem("willowflats-best",String(best)); }catch(e){} }
+  // the best on this exact map (same seed, world and difficulty) is kept separately, so shared maps can be compared fairly
+  const mapBest=bestHere(),isMapBest=sc.final>mapBest;
+  if(isMapBest) setBestHere(sc.final);
   $("ovK").textContent="Charter complete · "+diff.name+" · "+years+" years · Score "+sc.final+
-    (isBest?" · New best!":" · Best: "+best);
+    (isMapBest?" · New best on this map!":" · Best here: "+mapBest);
   $("ovT").textContent=(cityName||"Your city")+" is a metropolis";
   $("ovP").innerHTML="You crossed <b>6,000 residents</b>, averaged <b>"+Math.round(avgHappy)+
     "% happiness</b>, stayed solvent, and raised the Willow Tower — reaching <b>"+reached+"</b>, "+
     "<b>"+years+" years</b> in, on "+diff.name.toLowerCase()+".";
   $("endStats").innerHTML=
     row("Score",sc.final+" ("+Math.round(sc.base)+" base × "+sc.mult.toFixed(2)+" "+diff.name.toLowerCase()+")")+
-    row("Personal best",isBest?sc.final+" (this run)":best)+
+    row("Best on this map",isMapBest?sc.final+" (this run)":mapBest)+
+    row("Best on any map",isBest?sc.final+" (this run)":best)+
     row("— Speed",Math.round(sc.speed)+" / 20")+
     row("— Happiness",Math.round(sc.happiness)+" / 20")+
     row("— Low taxation",Math.round(sc.fiscal)+" / 20")+
@@ -1749,34 +1757,52 @@ function tick(){
 let advisoryActive=false;
 function advise(){
   if(fires.length) return;
-  let unlinked=0;
-  for(let i=0;i<W*H;i++){ const c=g[i]; if(isZone(c.t)&&c.road&&!c.link) unlinked++; }
-  let un=0;
-  for(let i=0;i<W*H;i++){ const c=g[i]; if(isZone(c.t)&&!(c.road&&c.pow&&c.wat)) un++; }
+  let unlinked=0,atUnlinked=null;
+  for(let i=0;i<W*H;i++){ const c=g[i]; if(isZone(c.t)&&c.road&&!c.link){ unlinked++; if(atUnlinked==null) atUnlinked=i; } }
+  let un=0,atUn=null;
+  for(let i=0;i<W*H;i++){ const c=g[i]; if(isZone(c.t)&&!(c.road&&c.pow&&c.wat)){ un++; if(atUn==null) atUn=i; } }
+  let atJam=null,jam=0,atCrime=null,worst=0;
+  for(let i=0;i<W*H;i++){
+    const cg=congAt(i); if(cg>jam){ jam=cg; atJam=i; }
+    if(isZone(g[i].t)&&g[i].dev>0&&crime[i]>worst){ worst=crime[i]; atCrime=i; }
+  }
   const checks=[
-    [unlinked>3, unlinked+" lots have no route back to the highway ramp — nobody can move in."],
+    [unlinked>3, unlinked+" lots have no route back to the highway ramp — nobody can move in.",atUnlinked],
     [powShort>0, "Power shortage — "+powShort+"% browning out. Need "+
       Math.ceil((powUse-powCap)/COAL_CAP)+" more plant(s)."],
     [watShort>0, "Water shortage — "+watShort+"% running dry. Need "+
       Math.ceil((watUse-watCap)/PUMP_CAP)+" more tower(s)."],
     [garShort>0, "Waste is piling up — "+garShort+"% uncollected. Need "+
       Math.ceil((garUse-garCap)/DUMP_CAP)+" more landfill(s)."],
-    [un>6, un+" zoned lots still have no road, power or water."],
-    [maxCong>1.4, "Gridlock. Upgrade those streets"+(unlocked.has(BUS)?" or add bus stops.":".")],
+    [un>6, un+" zoned lots still have no road, power or water.",atUn],
+    [maxCong>1.4, "Gridlock. Upgrade those streets"+(unlocked.has(BUS)?" or add bus stops.":"."),atJam],
     [avgCrime>45&&unlocked.has(POLICE), "Crime averaging "+Math.round(avgCrime)+
-      ". Police posts cut it by two thirds in range."],
+      ". Police posts cut it by two thirds in range.",atCrime],
     [dCom>.5, "Shops are in short supply — zone commercial."],
     [dInd>.5, "Factories are in short supply — zone industrial."],
     [pop>500&&growthBlock()!=="growing", "Population has plateaued: "+growthBlock()+"."],
     [happy<45, "Residents are unhappy. "+(unlocked.has("tax1")?"Lower taxes, add parks, or extend services.":"Add parks or extend services.")],
   ];
   const hit=checks.find(c=>c[0]);
-  if(hit){ advisoryActive=true; say(hit[1]); return; }
+  if(hit){ advisoryActive=true; say(hit[1],hit[2]); return; }
   // nothing wrong right now — if the ticker is still showing an old warning, replace it
   // so a solved problem (e.g. "need 1 more landfill") doesn't sit there looking unsolved
   if(advisoryActive){ advisoryActive=false; say("Running smoothly — no problems flagged."); }
 }
-function say(t){ msgTimer=26; if(msgEl){ msgEl.textContent=t; msgEl.classList.add("alert"); } }
+let msgTarget=null,pulse=null;
+function say(t,at){
+  msgTimer=26;
+  msgTarget=at==null?null:at;
+  $("tickerText").textContent=t; $("tickerGo").hidden=msgTarget==null;
+  if(msgEl) msgEl.classList.add("alert");
+}
+// pan and zoom the map to a tile and ring it for a couple of seconds
+function focusTile(i){
+  cam.s=Math.max(cam.s,2);
+  const vw=W*TS/cam.s,vh=H*TS/cam.s;
+  cam.x=(i%W)*TS+TS/2-vw/2; cam.y=((i/W)|0)*TS+TS/2-vh/2;
+  clampCam(); pulse={i,until:phase+170};
+}
 
 // ---------- placement ----------
 let brokeAt=0;
@@ -2482,6 +2508,14 @@ function minimapJump(e){
   clampCam();
 }
 function drawEvents(){
+  if(pulse){
+    if(phase>=pulse.until) pulse=null;
+    else{
+      const x=(pulse.i%W)*TS+8,y=((pulse.i/W)|0)*TS+8,k=((pulse.until-phase)%40)/40;
+      cx.strokeStyle="rgba(242,193,78,"+(0.35+0.6*k)+")"; cx.lineWidth=3;
+      cx.beginPath(); cx.arc(x,y,8+(1-k)*22,0,7); cx.stroke();
+    }
+  }
   for(const f of fires){
     const x=(f.i%W)*TS,y=((f.i/W)|0)*TS,flick=0.55+0.45*Math.sin(phase/3+f.i);
     cx.fillStyle="rgba(255,110,30,"+(0.4*flick)+")";
@@ -3053,6 +3087,7 @@ function drawTut(){
   }
   $("tutWarn").style.display=bl.length?"flex":"none";
 }
+$("tickerGo").onclick=()=>{ if(msgTarget!=null) focusTile(msgTarget); };
 $("tutFix").onclick=()=>{
   const list=tutBlocked(); if(!list.length) return;
   beginAction("Clear highlighted tiles");
@@ -3089,7 +3124,7 @@ function snapshot(){
   const t=[],dev=[],br=[],seed=[];
   for(let i=0;i<W*H;i++){ t.push(g[i].t); dev.push(g[i].dev); br.push(g[i].bridge?1:0); seed.push(g[i].seed); }
   return {v:9,W,H,money,week,tax,unlocked:[...unlocked],won,loans,owned:[...owned],
-          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,taxRes,taxCom,taxInd,policies:[...policies],mapSeed,worldType,pop,cityName,saved:Date.now()};
+          ach:[...achieved],perks,achTimer,history,t,dev,br,seed,peakTax,taxSum,taxSamples,taxRes,taxCom,taxInd,policies:[...policies],mapSeed,worldType,pop,cityName,diff:{...diff},saved:Date.now()};
 }
 function restore(d){
   if(d.W!==W||d.H!==H) throw new Error("size");
@@ -3102,6 +3137,7 @@ function restore(d){
   acc=0; dayT=(week/WEEKS_PER_DAY+DAY_START)%1;
   peakTax=d.peakTax!==undefined?d.peakTax:tax; taxSum=d.taxSum||0; taxSamples=d.taxSamples||0;
   cityName=d.cityName||randomCityName(); syncCityName();
+  if(d.diff){ Object.assign(diff,d.diff); $("diffBadge").textContent=diff.name; buildSliders(); }
   if(d.worldType&&WORLDS[d.worldType]) worldType=d.worldType;
   if(d.mapSeed!=null){ mapSeed=d.mapSeed; const st=$("mapSeedTag"); if(st) st.textContent=WORLDS[worldType].name+" · #"+mapSeed; }
   unlocked=new Set(d.unlocked||[]); loans=d.loans||[];
@@ -3113,7 +3149,7 @@ function restore(d){
   computeMountainElev();
   syncTaxInputs();
   fleet=[]; buses=[]; fires=[]; crimes=[]; undoStack=[];
-  clearOverlayTools(); buildTools(); settle();
+  clearOverlayTools(); buildTools(); settle(); updateShareTip();
 }
 // Three slots: the autosave (slot 1) and two slots the player saves into (2 and 3).
 // SAVE_KEY is the old single slot; it still shows up as slot 2 until a new save replaces it.
@@ -3227,6 +3263,14 @@ $("keysBtn").onclick=openKeys;
 $("keysClose").onclick=()=>$("keys").classList.remove("show");
 // Map links: ?seed=...&world=...&diff=... (or d=six custom numbers) and an optional name.
 const DIFF_KEYS=DIFF_FIELDS.map(f=>f.k);
+function mapKey(){ return worldType+":"+mapSeed+":"+(diffPresetKey()||"c"+DIFF_KEYS.map(f=>diff[f]).join("-")); }
+function readBests(){ try{ return JSON.parse(localStorage.getItem("willowflats.bests")||"{}")||{}; }catch(e){ return {}; } }
+function bestHere(){ return readBests()[mapKey()]||0; }
+function setBestHere(v){ const b=readBests(); b[mapKey()]=v; try{ localStorage.setItem("willowflats.bests",JSON.stringify(b)); }catch(e){} updateShareTip(); }
+function updateShareTip(){
+  const b=bestHere();
+  $("shareBtn").dataset.tip="Click to copy a link to this map. Anyone who opens it gets the same map and difficulty."+(b?" Your best here: "+b+".":"");
+}
 function diffPresetKey(){
   for(const k in PRESETS){ const pr=PRESETS[k]; if(DIFF_KEYS.every(f=>diff[f]===pr[f])) return k; }
   return null;
