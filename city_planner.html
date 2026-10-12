@@ -372,13 +372,13 @@
       <label>Tax rate</label><output>9%</output>
       <div class="lockline">Unlocks at 500 residents</div>
     </div>
-    <div class="taxbox" id="taxGeneral" style="display:none" data-tip="Each point above 9% brings in about 11% more but costs about 2.6 happiness and cools demand for shops and factories. Lower taxes also score better. Separate rates for homes, shops and factories unlock at 1,000 residents.">
+    <div class="taxbox" id="taxGeneral" style="display:none" data-tip="Each point above 9% brings in about 11% more but costs about 3.3 happiness and cools demand for shops and factories. Lower taxes also score better. Separate rates for homes, shops and factories unlock at 1,000 residents.">
       <label for="tax">Tax rate</label>
       <output id="taxOut">9%</output>
       <input type="range" id="tax" min="3" max="20" step="1" value="9">
     </div>
     <div class="taxbox" id="taxZones" style="display:none">
-      <div class="trow" data-tip="Homes tax: each point above 9% brings in more but costs about 2.6 happiness."><label for="taxR">Homes</label><output id="taxROut">9%</output><input type="range" id="taxR" min="3" max="20" step="1" value="9"></div>
+      <div class="trow" data-tip="Homes tax: each point above 9% brings in more but costs about 3.3 happiness."><label for="taxR">Homes</label><output id="taxROut">9%</output><input type="range" id="taxR" min="3" max="20" step="1" value="9"></div>
       <div class="trow" data-tip="Shops tax: each point above 9% brings in more but cools demand for new shops."><label for="taxC">Shops</label><output id="taxCOut">9%</output><input type="range" id="taxC" min="3" max="20" step="1" value="9"></div>
       <div class="trow" data-tip="Factories tax: each point above 9% brings in more but cools demand for new factories."><label for="taxI">Factories</label><output id="taxIOut">9%</output><input type="range" id="taxI" min="3" max="20" step="1" value="9"></div>
     </div>
@@ -748,7 +748,7 @@ let hover=null,msgTimer=0,msgEl,history=[],gShow={pop:true,money:true,happy:true
 let infMoney=false,pinHappy=false,showCars=true,dayNight=true;
 let peakTax=0,taxSum=0,taxSamples=0;
 // Tax unlocks in stages: fixed at 9% (no control), one rate for everyone, then a rate for homes, shops and factories.
-const TAX_GENERAL_POP=500,TAX_ZONES_POP=1000,TAX_DEMAND=0.03;   // keep the texts in the markup and the Reference list in step
+const TAX_GENERAL_POP=500,TAX_ZONES_POP=1000,TAX_DEMAND=0.03,TAX_HAPPY=3.3;   // happiness lost per point of homes tax above 9 (was 2.6; raised after measuring eight-year returns)   // keep the texts in the markup and the Reference list in step
 let taxRes=9,taxCom=9,taxInd=9;
 // Policies: city-wide rules that cost money every month. Slots unlock with the city. Rates are dollars per resident per month (a starting point to tune).
 const POLICY_POP=800;
@@ -1377,7 +1377,7 @@ function recount(){
   dRes=clamp((jobs-workforce)/(60+dn),-1,1);
   dCom=clamp((pop*0.19+jobsI*0.12-jobsC*1.05)/(35+dn)-(rateC()-9)*TAX_DEMAND+(policyOn("tourism")?0.10:0),-1,1);
   dInd=clamp((pop*0.16+jobsC*0.75-jobsI*1.05)/(40+dn)-(rateI()-9)*TAX_DEMAND,-1,1);
-  let h=74-(rateR()-9)*2.6;
+  let h=74-(rateR()-9)*TAX_HAPPY;
   h+=Math.min(10,parks*.7);
   h+=(avgLand-50)*0.25;
   h-=powShort*.25+watShort*.25+garShort*.22;
