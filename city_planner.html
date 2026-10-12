@@ -489,7 +489,7 @@
         industrial</strong>. At that ratio all three demand bars sit near zero and the city grows evenly.
         Skew it and one bar pins high while the others go negative.</li>
       <li><strong>Coal plant</strong> $1,600 — 600 MW, about 65 developed lots. $25/month idle, $150 at full
-        load. Smokes. <strong>Wind farm</strong> $2,400 — 320 MW, no pollution, higher idle cost.</li>
+        load. Smokes. <strong>Wind farm</strong> $2,200 — 320 MW, no pollution, higher idle cost.</li>
       <li><strong>Water tower</strong> $600 — 400 kL, about 65 lots. <strong>Aquifer</strong> $1,800 — 950 kL
         on one tile, unlocks at 1,800 residents — the land-efficient option once space runs short.
         <strong>Landfill</strong> $700 — 260 t, and a savage hit to land value for several tiles.
@@ -721,7 +721,7 @@ const TOOLS=[
   {id:RESV,     name:"Aquifer",      cost:1800, key:"Q", color:"#3d8f9e", unlock:1800},
   {id:SCHOOL,   name:"School",       cost:1200, key:"S", color:"#c9a227", unlock:2200},
   {id:INCIN,    name:"Sanitation",   cost:3200, key:"I", color:"#7c6f80", unlock:2600},
-  {id:WIND,     name:"Wind farm",    cost:2400, key:"N", color:"#dfe8ec", unlock:4000},
+  {id:WIND,     name:"Wind farm",    cost:2200, key:"N", color:"#dfe8ec", unlock:4000},
   {id:LANDMARK, name:"Willow Tower", cost:100000,key:"T", color:"#f2c14e", unlock:6000},
   {id:CIND,     name:"Clean zone",   cost:60,   per:true, key:"V", color:"#5fae8c", unlock:-1},
   {id:BULLDOZE, name:"Bulldoze",     cost:0,    per:true, key:"X", color:"#8ea6b4", unlock:0},
@@ -1836,7 +1836,7 @@ function costAt(t,c){
 }
 const BUILD_COST={[STREET]:10,[AVENUE]:45,[BOULEVARD]:165,[RES]:24,[COM]:28,[IND]:32,
   [POWER]:1600,[PUMP]:600,[RESV]:1800,[DUMP]:700,[INCIN]:3200,[PARK]:90,[FIRE]:520,[POLICE]:640,
-  [CLINIC]:950,[SCHOOL]:1200,[BUS]:300,[WIND]:2400,[LANDMARK]:100000,[CIND]:60};
+  [CLINIC]:950,[SCHOOL]:1200,[BUS]:300,[WIND]:2200,[LANDMARK]:100000,[CIND]:60};
 // selling a site back gets you 40% of what it cost — a way out of a debt spiral
 function refundFor(c){
   if(c.t===TREE||c.t===EMPTY||c.t===WATER||c.t===HIGHWAY) return 0;
