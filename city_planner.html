@@ -206,6 +206,15 @@
   #worldSelect{background:var(--ink-2);border:1px solid var(--line);color:var(--text);border-radius:6px;
     padding:6px 8px;font:inherit}
 
+  .tabs{display:flex;gap:6px;margin-top:12px}
+  .tabs button{background:var(--ink-2);border:1px solid var(--line);border-bottom:0;color:var(--muted);padding:7px 16px;
+    border-radius:7px 7px 0 0;font:inherit;font-size:14px;cursor:pointer}
+  .tabs button:hover{color:var(--text)}
+  .tabs button[aria-pressed="true"]{background:var(--ink-3);color:var(--accent);font-weight:600}
+  .panel.tabpane{margin-top:0;border-radius:0 7px 7px 7px}
+  .tabpane[hidden]{display:none}
+  .tabpane ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:14px;line-height:1.6}
+  .tabpane strong{color:var(--text)}
   .panel{margin-top:10px;border:1px solid var(--line);border-radius:7px;background:var(--ink-2);padding:10px 12px}
   .panel h2{font-family:"Barlow Semi Condensed",sans-serif;font-size:15px;margin:0 0 8px;font-weight:600}
   .goals{display:grid;gap:6px}
@@ -430,14 +439,17 @@
     <div class="steps" id="milestones"></div>
   </div>
 
-  <div class="panel">
-    <h2>History</h2>
+  <div class="tabs" id="tabs" role="tablist">
+    <button data-tab="history" aria-pressed="true">History</button>
+    <button data-tab="stats" aria-pressed="false">Statistics</button>
+    <button data-tab="comm" aria-pressed="false">Commendations</button>
+    <button data-tab="guide" aria-pressed="false">Guide</button>
+  </div>
+  <div class="panel tabpane" data-pane="history">
     <canvas id="graph" width="900" height="300"></canvas>
     <div class="glegend" id="glegend"></div>
   </div>
-
-  <div class="panel">
-    <h2>Statistics</h2>
+  <div class="panel tabpane" data-pane="stats" hidden>
     <div class="cols">
       <div>
         <div class="lhead">MONTHLY BUDGET</div>
@@ -452,15 +464,13 @@
       </div>
       <div><div class="lhead">CITY</div><div class="ledger" id="citystats"></div></div>
     </div>
-  </div>
 
-  <div class="panel">
-    <h2>Commendations</h2>
+  </div>
+  <div class="panel tabpane" data-pane="comm" hidden>
     <div class="achv" id="achv"></div>
   </div>
-
-  <details class="help">
-    <summary>Land use guide — what each thing actually does</summary>
+  <div class="panel tabpane" data-pane="guide" hidden>
+    <h2>Land use guide</h2>
     <ul>
       <li><strong>Residential.</strong> $24 a tile. Holds 7 people at stage 1, 18 at stage 2, 38 at stage 3.
         Grows only when there are jobs for the people already here. Stage 2 needs land value 36 and
@@ -501,10 +511,7 @@
       <li><strong>Willow Tower</strong> $100,000, unlocks at 6,000 residents. Forces land value to a flat
         100 in a 5-tile radius around it — a guaranteed high-value core for whatever you build nearby.</li>
     </ul>
-  </details>
-
-  <details class="help">
-    <summary>Reference</summary>
+    <h2 style="margin-top:18px">Reference</h2>
     <ul>
       <li><strong>The highway is where everyone comes from.</strong> Residents only move in if their street
         traces back to the ramp on the west edge. It also supplies about 200 out-of-town jobs, which is what
@@ -527,7 +534,7 @@
         one-by-one clearing, or right-drag a box to clear a whole area at once with a confirm step.</li>
       <li><strong>Undo</strong> reverses the last build, upgrade or land purchase. Ctrl+Z works too.</li>
       <li><strong>Commendations</strong> — ten to find, each worth a small permanent discount and half a
-        point toward your final score. Check the Commendations panel above for what's still open.</li>
+        point toward your final score. Check the Commendations tab for what's still open.</li>
       <li><strong>Score</strong>, shown when you win, breaks into five even parts — speed, happiness, low
         taxation, livability, and prosperity (land value plus commendations) — each worth 20, then scaled by
         difficulty.</li>
@@ -537,7 +544,7 @@
       <li><strong>Policies</strong> unlock at 800 residents: recycling, clean air rules, free buses, a safety campaign and a tourism campaign.
         Each costs money every month and has a trade-off, and you can run one at a time at first, two from 2,000 residents and three from 4,000.</li>
     </ul>
-  </details>
+  </div>
 
   <details class="panel dev" id="devPanel" hidden>
     <summary>Dev tools</summary>
@@ -568,7 +575,7 @@
       <div><i>1</i><span>Everything grows from the highway ramp on the west edge. No route back to it, no residents.</span></div>
       <div><i>2</i><span>Homes need jobs, shops need customers, factories need both. Zone in balance or nothing grows.</span></div>
       <div><i>3</i><span>Land value sets how tall a lot gets. Parks lift it; smog, landfills, gridlock and crime sink it.</span></div>
-      <div><i>4</i><span>Buy more parcels when you outgrow these four. The charter at the bottom is your goal.</span></div>
+      <div><i>4</i><span>Buy more parcels when you outgrow these four. The charter below the map is your goal.</span></div>
     </div>
     <div class="btns">
       <button class="primary" id="introContinue" style="display:none"></button>
@@ -636,6 +643,7 @@
       <button class="linkbtn" data-preset="normal">Normal</button>
       <button class="linkbtn" data-preset="hard">Hard</button>
       <button class="linkbtn" data-preset="brutal">Brutal</button>
+      <button class="linkbtn" data-preset="sandbox" data-tip="Relaxed play: unlimited money, everything unlocked, no ending and no score.">Sandbox</button>
       <span class="sp"></span>
       <span style="color:var(--muted);font-size:13px">Score multiplier <b id="diffMultOut" style="color:var(--text)"></b></span>
     </div>
@@ -761,7 +769,7 @@ const POLICIES=[
 ];
 let policies=new Set();
 const policyOn=id=>policies.has(id);
-const policySlots=()=>pop>=4000?3:pop>=2000?2:pop>=POLICY_POP?1:0;
+const policySlots=()=>diff.sandbox?3:pop>=4000?3:pop>=2000?2:pop>=POLICY_POP?1:0;
 const busShare=()=>policyOn("buses")?0.65:BUS_SHARE;
 const rateR=()=>unlocked.has("tax2")?taxRes:tax;
 const rateC=()=>unlocked.has("tax2")?taxCom:tax;
@@ -789,6 +797,7 @@ const PRESETS={
   normal:{name:"Normal",cash:20000,income:1.0, upkeep:1.0, parcel:1.0,hazard:1.0,growth:1.0},
   hard:  {name:"Hard",  cash:12000,income:0.85,upkeep:1.15,parcel:1.4,hazard:1.5,growth:0.85},
   brutal:{name:"Brutal",cash:8000, income:0.7, upkeep:1.35,parcel:1.8,hazard:2.0,growth:0.7},
+  sandbox:{name:"Sandbox",cash:20000,income:1.0, upkeep:1.0, parcel:1.0,hazard:1.0,growth:1.0,sandbox:true},   // unlimited money, everything unlocked, no ending or score
 };
 let diff=Object.assign({},PRESETS.normal);
 function mulberry32(a){
@@ -929,6 +938,8 @@ function newGame(){
   crime=new Float32Array(W*H); load=new Float32Array(W*H);
   distJob=new Int16Array(W*H); distHome=new Int16Array(W*H); distHwy=new Int16Array(W*H);
   unlocked=new Set(); won=false; tutStep=0; tutPlan=null; loans=[];
+  infMoney=!!diff.sandbox;
+  if(diff.sandbox){ TOOLS.forEach(t=>unlocked.add(t.id)); unlocked.add("tax1"); unlocked.add("tax2"); unlocked.add("pol"); }
   perks={}; achieved=new Set(); achTimer={};
   fleet=[]; buses=[]; fires=[]; crimes=[]; fleetDirty=true; history=[]; noticedPlay=false;
   undoStack=[]; recording=null; clearOverlayTools();
@@ -1630,7 +1641,7 @@ function checkUnlocks(){
   }
   taxUI(); polUI();
   if(changed) buildTools();
-  if(!won&&pop>=6000&&money>0&&countType(LANDMARK)>0&&runStats().avgHappy>=60){
+  if(!won&&!diff.sandbox&&pop>=6000&&money>0&&countType(LANDMARK)>0&&runStats().avgHappy>=60){
     won=true; showEnding();
   }
 }
@@ -3138,6 +3149,7 @@ function restore(d){
   peakTax=d.peakTax!==undefined?d.peakTax:tax; taxSum=d.taxSum||0; taxSamples=d.taxSamples||0;
   cityName=d.cityName||randomCityName(); syncCityName();
   if(d.diff){ Object.assign(diff,d.diff); $("diffBadge").textContent=diff.name; buildSliders(); }
+  infMoney=!!diff.sandbox;
   if(d.worldType&&WORLDS[d.worldType]) worldType=d.worldType;
   if(d.mapSeed!=null){ mapSeed=d.mapSeed; const st=$("mapSeedTag"); if(st) st.textContent=WORLDS[worldType].name+" · #"+mapSeed; }
   unlocked=new Set(d.unlocked||[]); loans=d.loans||[];
@@ -3272,7 +3284,7 @@ function updateShareTip(){
   $("shareBtn").dataset.tip="Click to copy a link to this map. Anyone who opens it gets the same map and difficulty."+(b?" Your best here: "+b+".":"");
 }
 function diffPresetKey(){
-  for(const k in PRESETS){ const pr=PRESETS[k]; if(DIFF_KEYS.every(f=>diff[f]===pr[f])) return k; }
+  for(const k in PRESETS){ const pr=PRESETS[k]; if(!!diff.sandbox===!!pr.sandbox&&DIFF_KEYS.every(f=>diff[f]===pr[f])) return k; }
   return null;
 }
 function mapLink(){
@@ -3303,7 +3315,7 @@ function applyLink(){
   const world=q.get("world");
   if(world&&WORLDS[world]){ pendingWorld=world; $("worldSelect").value=world; used=true; }
   const dk=q.get("diff"),dv=q.get("d");
-  if(dk&&PRESETS[dk]){ Object.assign(diff,PRESETS[dk]); used=true; }
+  if(dk&&PRESETS[dk]){ diff=Object.assign({},PRESETS[dk]); used=true; }
   else if(dv){
     const v=dv.split(",").map(Number);
     if(v.length===DIFF_FIELDS.length&&v.every((n,i)=>Number.isFinite(n)&&n>=DIFF_FIELDS[i].min&&n<=DIFF_FIELDS[i].max)){
@@ -3625,14 +3637,14 @@ function buildSliders(){
       '<input type="range" data-d="'+f.k+'" min="'+f.min+'" max="'+f.max+'" step="'+f.step+
       '" value="'+diff[f.k]+'"><output>'+f.fmt(diff[f.k])+'</output>';
     const inp=d.querySelector("input"),out=d.querySelector("output");
-    inp.oninput=()=>{ diff[f.k]=+inp.value; out.textContent=f.fmt(diff[f.k]); diff.name="Custom"; updateDiffMultPreview(); };
+    inp.oninput=()=>{ diff[f.k]=+inp.value; out.textContent=f.fmt(diff[f.k]); diff.name="Custom"; diff.sandbox=false; updateDiffMultPreview(); };
     $("sliders").appendChild(d);
   }
   updateDiffMultPreview();
 }
 function updateDiffMultPreview(){
   const el=$("diffMultOut"); if(!el) return;
-  el.textContent="×"+diffMultiplier().toFixed(2);
+  el.textContent=diff.sandbox?"none (no score)":"×"+diffMultiplier().toFixed(2);
 }
 document.querySelectorAll("[data-preset]").forEach(b=>{
   b.onclick=()=>{ diff=Object.assign({},PRESETS[b.dataset.preset]); buildSliders(); };
@@ -3732,6 +3744,15 @@ document.addEventListener("focusin",e=>{
 });
 document.addEventListener("focusout",hideTip);
 
+// ---------- tabs under the charter ----------
+function showTab(id){
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tab===id)));
+  document.querySelectorAll(".tabpane").forEach(pn=>{ pn.hidden=pn.dataset.pane!==id; });
+  try{ localStorage.setItem("willowflats.tab",id); }catch(e){}
+  if(id==="history") drawGraph();
+}
+document.querySelectorAll("#tabs button").forEach(b=>{ b.onclick=()=>showTab(b.dataset.tab); });
+
 // ---------- go ----------
 msgEl=$("ticker");
 tax=+taxEl.value;
@@ -3745,6 +3766,7 @@ $("diffBadge").textContent=diff.name;
 settle();
 setSpeed(0);
 requestAnimationFrame(frame);
+{ let tb="history"; try{ tb=localStorage.getItem("willowflats.tab")||"history"; }catch(e){} if(!document.querySelector('#tabs button[data-tab="'+tb+'"]')) tb="history"; showTab(tb); }
 $("intro").classList.add("show");
 // Continue only exists on the start screen; once the intro is dismissed it is gone and "New game" becomes "Close".
 function hideContinue(){ $("introContinue").style.display="none"; $("introTut").className="primary"; $("introSkip").textContent="Close"; }
