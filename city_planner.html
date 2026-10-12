@@ -1557,7 +1557,7 @@ const ACHS=[
    check:()=>jobsI>=1500&&avgSmog()<12,perk:"cheapWind"},
   {id:"riverside",name:"Riverside city",desc:"40 developed lots on the waterfront. Water frontage is worth more.",
    check:()=>waterfrontLots()>=40,perk:"riverside"},
-  {id:"solvent",name:"Sound finances",desc:"Repay a bond in full. Future bonds carry 15% interest instead of 25%.",
+  {id:"solvent",name:"Sound finances",desc:"Repay a bond in full. Future bonds carry 25% interest instead of 40%.",
    check:()=>!!perks.paidOff,perk:"paidOff"},
   {id:"tidy",name:"Nothing wasted",desc:"Two years with no waste backlog and 500+ residents. Landfills bill 25% less.",
    hold:96,test:()=>pop>500&&garShort===0,perk:"cheapDump"},
