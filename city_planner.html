@@ -502,7 +502,7 @@
         <em>two or more</em> stops on the same road network, homes within 4 tiles of a stop send about 45%
         fewer cars onto the roads. It doesn't change where people work or how much tax they pay — it purely
         removes traffic, which means less congestion, higher land value on the jammed streets, and one fewer
-        avenue to pay for. Stops on their own do nothing; you need a pair before anyone rides.</li>
+        avenue to pay for. Covered lots also gain a little land value (+3). Stops on their own do nothing; you need a pair before anyone rides.</li>
       <li><strong>Fire</strong> 7 tiles, <strong>police</strong> 8, <strong>clinic</strong> 9,
         <strong>school</strong> 10. Coverage feeds happiness (±5 each) and land value (+7 per service on the
         tile), and homes need two of them to reach stage 3. Clinic and school only count toward homes —
@@ -700,6 +700,8 @@ const NEXT_TIER={[STREET]:AVENUE,[AVENUE]:BOULEVARD};
 const TIER_COST={[AVENUE]:35,[BOULEVARD]:120};
 const TIER_NAME={[STREET]:"street",[AVENUE]:"avenue",[BOULEVARD]:"boulevard"};
 const EXT_JOBS=200, WEEKS_PER_DAY=48, BUS_R=4, BUS_SHARE=0.45;
+const CRIME_BASE=62;   // crime on a lot is (62 - land value) plus unemployment, times 0.3 under police cover (was 52 and a 0.9 slope)
+const BUS_LAND=3;      // land value bonus for lots a working pair of bus stops covers
 const SAVE_KEY="willowflats.v9";
 
 const TOOLS=[
@@ -728,7 +730,7 @@ const byId=id=>TOOLS.find(t=>t.id===id);
 const UPKEEP={[STREET]:[0.6,0.6],[AVENUE]:[2.2,2.2],[BOULEVARD]:[5,5],[HIGHWAY]:[0,0],
   [POWER]:[25,150],[PUMP]:[12,60],[RESV]:[20,100],[WIND]:[20,95],[DUMP]:[10,55],[INCIN]:[45,190],
   [PARK]:[6,6],[FIRE]:[12,60],[POLICE]:[14,70],[CLINIC]:[20,105],[SCHOOL]:[25,125],
-  [BUS]:[6,34],[LANDMARK]:[0,0]};
+  [BUS]:[4,20],[LANDMARK]:[0,0]};
 const SERVICES=[{t:FIRE,r:7,key:"fire"},{t:POLICE,r:8,key:"police"},
                 {t:CLINIC,r:9,key:"clinic"},{t:SCHOOL,r:10,key:"school"}];
 const svcRadius=sv=>sv.r+((sv.key==="fire"||sv.key==="police")&&policyOn("safety")?2:0);   // Safety campaign: +2 tiles
@@ -1340,7 +1342,7 @@ function computeLand(){
   for(let i=0;i<W*H;i++) if(isTier(g[i].t)) jam[i]=Math.max(0,congAt(i)-0.7)*60;
   const jm=blur(jam,2);
   for(let i=0;i<W*H;i++){
-    let v=clamp(44+(perks.noEmptyBonus?5:0)+am[i]*1.5+serviceCount(i)*7-smog[i]*0.55-jm[i]*1.6-crime[i]*0.28-garShort*0.12,0,100);
+    let v=clamp(44+(perks.noEmptyBonus?5:0)+am[i]*1.5+serviceCount(i)*7+(busCov[i]?BUS_LAND:0)-smog[i]*0.55-jm[i]*1.6-crime[i]*0.28-garShort*0.12,0,100);
     land[i]=v;
   }
   for(let i=0;i<W*H;i++) if(g[i].t===LANDMARK) stamp(i,5,j=>{ land[j]=100; });
@@ -1357,7 +1359,7 @@ function computeCrime(){
   for(let i=0;i<W*H;i++){
     const c=g[i];
     if(!isZone(c.t)||c.dev===0) continue;
-    let v=(52-land[i])*0.9+unemp*55;
+    let v=(CRIME_BASE-land[i])+unemp*55;
     if(hasCover(i,"police")) v*=0.3;
     src[i]=clamp(v,0,100);
   }
@@ -1547,8 +1549,8 @@ function growthBlock(){
 const ACHS=[
   {id:"greenbelt",name:"Green belt",desc:"20 parks standing at once. Parks cost 30% less to run.",
    check:()=>countType(PARK)>=20,perk:"cheapParks"},
-  {id:"safe",name:"Safe streets",desc:"Average crime under 10 for three straight years. Police upkeep −30%.",
-   hold:144,test:()=>pop>400&&avgCrime<10,perk:"cheapPolice"},
+  {id:"safe",name:"Safe streets",desc:"Average crime under 4 for three straight years. Police upkeep −30%.",
+   hold:144,test:()=>pop>400&&avgCrime<4,perk:"cheapPolice"},
   {id:"fireproof",name:"Fireproof",desc:"Full fire cover for three years. Fire station upkeep −30%.",
    hold:144,test:()=>pop>400&&cover.fire>=0.995,perk:"cheapFire"},
   {id:"freeflow",name:"Free flowing",desc:"2,000 residents with peak congestion under 60%. Road upgrades 25% cheaper.",
@@ -2935,7 +2937,7 @@ function toolTip(t,lock){
     [POLICE]:"Covers "+radiusOf(POLICE)+" tiles and cuts crime by about two thirds there.",
     [CLINIC]:"Covers "+radiusOf(CLINIC)+" tiles. Only homes need it.",
     [SCHOOL]:"Covers "+radiusOf(SCHOOL)+" tiles. Only homes need it.",
-    [BUS]:"Works in pairs: with two or more stops, homes within "+BUS_R+" tiles send about "+Math.round(BUS_SHARE*100)+"% fewer cars onto the roads.",
+    [BUS]:"Works in pairs: with two or more stops, homes within "+BUS_R+" tiles send about "+Math.round(BUS_SHARE*100)+"% fewer cars onto the roads, and those lots gain a little land value.",
     [LANDMARK]:"Sets land value to 100 within 5 tiles. You can only build one.",
     [CIND]:"Factories with no smog. Unlocks once you have raised the Willow Tower.",
     [BULLDOZE]:"Clears a tile and refunds 40% of its cost. Right-drag to clear a box.",
